@@ -9,6 +9,15 @@ class HealthResponse(BaseModel):
     status: str = Field(..., example="ok", description="API health status")
 
 
+class ModelInfoResponse(BaseModel):
+    """Response schema for the active model configuration details."""
+
+    model: str = Field(..., example="Faster R-CNN ResNet-50 FPN v2", description="Name of the model")
+    device: str = Field(..., example="cpu", description="Compute device being used for inference")
+    confidence_threshold: float = Field(..., example=0.5, description="Active minimum detection confidence")
+    max_file_size_mb: int = Field(..., example=15, description="Maximum allowed file upload size in MB")
+
+
 class BoundingBox(BaseModel):
     """Coordinates of a detected object's bounding box."""
 
