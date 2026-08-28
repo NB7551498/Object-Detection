@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Object Detection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #131314;
+            --chat-bg: #1e1f20;
+            --input-bg: #1e1f20;
+            --text-color: #e3e3e3;
+            --text-secondary: #c4c7c5;
+            --accent-color: #a8c7fa;
+            --accent-hover: #c2e7ff;
+            --border-color: #444746;
+            --bubble-user: #2b2c2f;
+            --bubble-gemini: #1e1f20;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Header ─────────────────────────────────────────────────── */
+        header {
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-sparkle {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #7a9cff, #9ba8ff, #ffbcff);
+            clip-path: polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%);
+            animation: rotateSparkle 8s infinite linear;
+        }
+
+        @keyframes rotateSparkle {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+        }
+
+        .api-docs-link {
+            color: var(--accent-color);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: 100px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+
+        .api-docs-link:hover {
+            background-color: rgba(168, 199, 250, 0.08);
+            border-color: var(--accent-color);
+        }
+
+        /* ── Chat Container ─────────────────────────────────────────── */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-width: 860px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Empty State */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 16px;
+            color: var(--text-secondary);
+        }
+
+        .empty-title {
+            font-size: 40px;
+            font-weight: 500;
+            background: linear-gradient(135deg, #4285f4, #9b72cb, #d96570);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .empty-subtitle {
+            font-size: 16px;
+            max-width: 420px;
+            line-height: 1.5;
+        }
+
+        /* Message Bubbles */
+        .message {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.gemini {
+            align-self: flex-start;
+            width: 100%;
+        }
+
+        .message-content {
+            padding: 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            font-size: 15px;
+        }
+
+        .user .message-content {
+            background-color: var(--bubble-user);
+            color: var(--text-color);
+            border-bottom-right-radius: 4px;
+        }
+
+        .gemini .message-content {
+            background-color: var(--bubble-gemini);
+            color: var(--text-color);
+            border-bottom-left-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            border: 1px solid var(--border-color);
+            width: 100%;
+        }
+
+        /* Image Display */
+        .uploaded-image-preview {
+            max-width: 320px;
+            max-height: 240px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid var(--border-color);
+        }
+
+        .annotated-image {
+            width: 100%;
+            max-height: 480px;
+            object-fit: contain;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background-color: #0b0b0c;
+        }
+
+        /* Results Card layout */
+        .results-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .results-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.04);
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge-score {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .high-score {
+            background-color: rgba(52, 199, 89, 0.15);
+            color: #34c759;
+        }
+
+        .med-score {
+            background-color: rgba(255, 149, 0, 0.15);
+            color: #ff9500;
+        }
+
+        /* ── Input Container Area ─────────────────────────────────────── */
+        .input-outer-container {
+            padding: 16px 24px 24px;
+            background-color: var(--bg-color);
+        }
+
+        .input-wrapper {
+            max-width: 860px;
+            margin: 0 auto;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 100px;
+            padding: 8px 12px 8px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: border-color 0.2s ease;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--accent-color);
+        }
+
+        /* File Upload styling */
+        .upload-btn-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .attach-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .attach-btn:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: var(--text-color);
+        }
+
+        .file-info-text {
+            flex: 1;
+            font-size: 15px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .submit-btn {
+            background-color: var(--accent-color);
+            color: #131314;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .submit-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .submit-btn:disabled {
+            background-color: #2c2d2f;
+            color: #727477;
+            cursor: not-allowed;
+        }
+
+        /* Spinner */
+        .loading-dots {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            padding: 8px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-sparkle"></div>
+            <h1>Object Detection</h1>
+        </div>
+        <a href="/docs" class="api-docs-link" target="_blank">API Docs</a>
+    </header>
+
+    <main id="chat-feed">
+        <div class="empty-state" id="empty-state">
+            <div class="logo-sparkle" style="width: 48px; height: 48px; margin-bottom: 8px;"></div>
+            <h2 class="empty-title">Detect objects instantly</h2>
+            <p class="empty-subtitle">Upload any image file to visualize bounding boxes and receive class confidence mappings using Faster R-CNN ResNet-50.</p>
+        </div>
+    </main>
+
+    <div class="input-outer-container">
+        <div class="input-wrapper">
+            <div class="upload-btn-container">
+                <input type="file" id="image-loader" class="file-input" accept="image/jpeg,image/png,image/webp,image/bmp">
+                <button class="attach-btn" onclick="document.getElementById('image-loader').click()" title="Upload Image">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="file-info-text" id="file-label">Upload an image to start...</div>
+
+            <button class="submit-btn" id="send-button" disabled title="Detect Objects">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(45deg); margin-left: -2px; margin-top: 1px;">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const imageLoader = document.getElementById('image-loader');
+        const fileLabel = document.getElementById('file-label');
+        const sendButton = document.getElementById('send-button');
+        const chatFeed = document.getElementById('chat-feed');
+        const emptyState = document.getElementById('empty-state');
+
+        let selectedFile = null;
+
+        imageLoader.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                selectedFile = e.target.files[0];
+                fileLabel.textContent = selectedFile.name;
+                sendButton.disabled = false;
+            }
+        });
+
+        sendButton.addEventListener('click', async function() {
+            if (!selectedFile) return;
+
+            // Clear empty state if visible
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+
+            // Create User Message bubble with image preview
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                userMsg.innerHTML = `
+                    <div class="message-content">
+                        <img src="${e.target.result}" class="uploaded-image-preview" alt="User upload">
+                    </div>
+                `;
+                chatFeed.appendChild(userMsg);
+                chatFeed.scrollTop = chatFeed.scrollHeight;
+            }
+            reader.readAsDataURL(selectedFile);
+
+            // Create Loading bubble for Gemini response
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'message gemini';
+            loadingMsg.innerHTML = `
+                <div class="message-content">
+                    <div class="loading-dots">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                </div>
+            `;
+            chatFeed.appendChild(loadingMsg);
+            chatFeed.scrollTop = chatFeed.scrollHeight;
+
+            // Reset input values
+            const currentFile = selectedFile;
+            selectedFile = null;
+            imageLoader.value = '';
+            fileLabel.textContent = 'Upload an image to start...';
+            sendButton.disabled = true;
+
+            // Send to FastAPI /predict
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Replace loading bubble with the results
+                let tableRows = '';
+                if (data.detections && data.detections.length > 0) {
+                    data.detections.forEach(det => {
+                        const scoreClass = det.confidence >= 0.7 ? 'high-score' : 'med-score';
+                        const scorePercent = Math.round(det.confidence * 100) + '%';
+                        tableRows += `
+                            <tr>
+                                <td><strong>${det.label}</strong></td>
+                                <td><span class="badge-score ${scoreClass}">${scorePercent}</span></td>
+                                <td>Box: [${det.box.xmin}, ${det.box.ymin}, ${det.box.xmax}, ${det.box.ymax}]</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tableRows = `
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: var(--text-secondary);">No objects detected above threshold.</td>
+                        </tr>
+                    `;
+                }
+
+                loadingMsg.innerHTML = `
+                    <div class="message-content">
+                        <img src="${data.annotated_image}" class="annotated-image" alt="Detections visualization">
+                        <div class="results-panel">
+                            <div class="results-title">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                Detections Analysis
+                            </div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Object Class</th>
+                                            <th>Confidence</th>
+                                            <th>Bounding Box (pixels)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${tableRows}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                loadingMsg.innerHTML = `
+                    <div class="message-content" style="border-color: #ff3b30; color: #ff3b30;">
+                        <strong>Detection Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+
+            chatFeed.scrollTop = chatFeed.scrollHeight;
+        });
+    </script>
+</body>
+</html>

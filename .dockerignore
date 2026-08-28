@@ -1,0 +1,12 @@
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.dockerignore
+*.md
+save_model.py
+examples/
+.venv/
+.env
+*.egg-info
