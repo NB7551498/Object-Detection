@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Object Detection</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <title>YOLOv8 Live Object Detection & Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #131314;
             --chat-bg: #1e1f20;
+            --card-bg: #1e1f20;
             --input-bg: #1e1f20;
             --text-color: #e3e3e3;
             --text-secondary: #c4c7c5;
@@ -17,6 +18,9 @@
             --border-color: #444746;
             --bubble-user: #2b2c2f;
             --bubble-gemini: #1e1f20;
+            --success-color: #34c759;
+            --danger-color: #ff3b30;
+            --warning-color: #ff9500;
         }
 
         * {
@@ -37,12 +41,13 @@
 
         /* ── Header ─────────────────────────────────────────────────── */
         header {
-            padding: 16px 24px;
+            padding: 14px 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid var(--border-color);
             background-color: var(--bg-color);
+            z-index: 10;
         }
 
         .logo-container {
@@ -65,15 +70,51 @@
         }
 
         h1 {
-            font-size: 20px;
+            font-size: 19px;
             font-weight: 500;
             letter-spacing: -0.3px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Tab Switcher */
+        .tab-switcher {
+            display: flex;
+            background-color: #2b2c2f;
+            border-radius: 100px;
+            padding: 3px;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 100px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent-color);
+            color: #040e1b;
+            font-weight: 600;
         }
 
         .api-docs-link {
             color: var(--accent-color);
             text-decoration: none;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             padding: 6px 12px;
             border-radius: 100px;
@@ -86,58 +127,254 @@
             border-color: var(--accent-color);
         }
 
-        /* ── Chat Container ─────────────────────────────────────────── */
-        main {
+        /* ── Views Container ─────────────────────────────────────────── */
+        .view-content {
             flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            max-width: 860px;
-            width: 100%;
-            margin: 0 auto;
+            display: none;
+            overflow: hidden;
         }
 
-        /* Empty State */
-        .empty-state {
+        .view-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Live Camera View ────────────────────────────────────────── */
+        #live-view {
+            padding: 16px 24px;
+            gap: 16px;
+            max-width: 1100px;
+            width: 100%;
+            margin: 0 auto;
+            overflow-y: auto;
+        }
+
+        .camera-grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
             flex: 1;
+            min-height: 480px;
+        }
+
+        @media (max-width: 900px) {
+            .camera-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .video-viewport {
+            position: relative;
+            background-color: #0d0e0f;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 4 / 3;
+            max-height: 520px;
+        }
+
+        #webcam-video {
+            display: none; /* Processed offscreen, rendered to canvas */
+        }
+
+        #live-canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .camera-placeholder {
+            position: absolute;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .camera-placeholder svg {
+            stroke: var(--accent-color);
+            opacity: 0.8;
+        }
+
+        .live-badge {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            background-color: rgba(255, 59, 48, 0.85);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 100px;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(4px);
+        }
+
+        .live-pulse {
+            width: 6px;
+            height: 6px;
+            background-color: white;
+            border-radius: 50%;
+            animation: pulseDot 1.5s infinite;
+        }
+
+        @keyframes pulseDot {
+            0% { transform: scale(0.9); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.5; }
+            100% { transform: scale(0.9); opacity: 1; }
+        }
+
+        .hud-stats {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .hud-chip {
+            background-color: rgba(19, 19, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 100px;
+            backdrop-filter: blur(6px);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Camera Control Sidebar */
+        .camera-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .hud-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .hud-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-camera {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-start {
+            background-color: var(--accent-color);
+            color: #040e1b;
+        }
+
+        .btn-start:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-stop {
+            background-color: #2b2c2f;
+            color: var(--danger-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-stop:hover {
+            background-color: rgba(255, 59, 48, 0.15);
+            border-color: var(--danger-color);
+        }
+
+        .live-objects-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .object-pill {
+            background-color: #2b2c2f;
+            border: 1px solid var(--border-color);
+            border-radius: 100px;
+            padding: 4px 10px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .object-pill .score {
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        /* ── Image Chat View ─────────────────────────────────────────── */
+        #chat-view {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-feed {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 860px;
+            width: 100%;
+            margin: 0 auto;
+            padding-bottom: 20px;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
             text-align: center;
             gap: 16px;
             color: var(--text-secondary);
         }
 
-        .empty-title {
-            font-size: 40px;
-            font-weight: 500;
-            background: linear-gradient(135deg, #4285f4, #9b72cb, #d96570);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 8px;
-        }
-
-        .empty-subtitle {
-            font-size: 16px;
-            max-width: 420px;
-            line-height: 1.5;
-        }
-
-        /* Message Bubbles */
         .message {
             display: flex;
             flex-direction: column;
-            gap: 8px;
             max-width: 85%;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .message.user {
@@ -147,202 +384,160 @@
         .message.gemini {
             align-self: flex-start;
             width: 100%;
+            max-width: 860px;
         }
 
-        .message-content {
-            padding: 16px;
-            border-radius: 18px;
-            line-height: 1.5;
-            font-size: 15px;
-        }
-
-        .user .message-content {
+        .message.user .message-content {
             background-color: var(--bubble-user);
-            color: var(--text-color);
-            border-bottom-right-radius: 4px;
+            padding: 8px;
+            border-radius: 18px 18px 4px 18px;
         }
 
-        .gemini .message-content {
-            background-color: var(--bubble-gemini);
-            color: var(--text-color);
-            border-bottom-left-radius: 4px;
+        .message.gemini .message-content {
+            background-color: transparent;
+            padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            border: 1px solid var(--border-color);
+            gap: 16px;
             width: 100%;
         }
 
-        /* Image Display */
         .uploaded-image-preview {
             max-width: 320px;
             max-height: 240px;
             border-radius: 12px;
-            object-fit: cover;
-            border: 1px solid var(--border-color);
+            display: block;
         }
 
         .annotated-image {
-            width: 100%;
-            max-height: 480px;
-            object-fit: contain;
-            border-radius: 12px;
+            max-width: 100%;
+            border-radius: 16px;
             border: 1px solid var(--border-color);
-            background-color: #0b0b0c;
+            background-color: #000;
         }
 
-        /* Results Card layout */
         .results-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+            margin-top: 10px;
         }
 
         .results-title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            color: var(--accent-color);
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
+            color: var(--accent-color);
         }
 
-        .table-container {
-            overflow-x: auto;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-
-        table {
+        .table-container table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .table-container th {
             text-align: left;
-            font-size: 14px;
-        }
-
-        th, td {
-            padding: 10px 14px;
+            padding: 8px 12px;
             border-bottom: 1px solid var(--border-color);
-        }
-
-        th {
-            background-color: rgba(255, 255, 255, 0.04);
-            font-weight: 500;
             color: var(--text-secondary);
         }
 
-        tr:last-child td {
-            border-bottom: none;
+        .table-container td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .badge-score {
             display: inline-block;
             padding: 2px 8px;
             border-radius: 100px;
+            font-size: 11px;
             font-weight: 600;
-            font-size: 12px;
         }
 
         .high-score {
             background-color: rgba(52, 199, 89, 0.15);
             color: #34c759;
+            border: 1px solid rgba(52, 199, 89, 0.3);
         }
 
         .med-score {
             background-color: rgba(255, 149, 0, 0.15);
             color: #ff9500;
+            border: 1px solid rgba(255, 149, 0, 0.3);
         }
 
-        /* ── Input Container Area ─────────────────────────────────────── */
-        .input-outer-container {
-            padding: 16px 24px 24px;
+        /* ── Bottom Input Bar ────────────────────────────────────────── */
+        .bottom-bar {
+            padding: 14px 24px;
             background-color: var(--bg-color);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
         }
 
-        .input-wrapper {
+        .input-box {
             max-width: 860px;
-            margin: 0 auto;
+            width: 100%;
             background-color: var(--input-bg);
             border: 1px solid var(--border-color);
-            border-radius: 100px;
-            padding: 8px 12px 8px 24px;
+            border-radius: 28px;
             display: flex;
             align-items: center;
-            gap: 12px;
-            transition: border-color 0.2s ease;
+            padding: 6px 14px;
+            gap: 10px;
         }
 
-        .input-wrapper:focus-within {
-            border-color: var(--accent-color);
-        }
-
-        /* File Upload styling */
-        .upload-btn-container {
-            display: flex;
-            align-items: center;
-        }
-
-        .file-input {
-            display: none;
-        }
-
-        .attach-btn {
-            background: none;
-            border: none;
+        .upload-icon-label {
             cursor: pointer;
-            color: var(--text-secondary);
-            padding: 8px;
-            border-radius: 50%;
             display: flex;
             align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .attach-btn:hover {
-            background-color: rgba(255, 255, 255, 0.08);
-            color: var(--text-color);
+            color: var(--accent-color);
+            padding: 6px;
+            border-radius: 50%;
         }
 
         .file-info-text {
             flex: 1;
-            font-size: 15px;
+            font-size: 14px;
             color: var(--text-secondary);
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
         }
 
-        .submit-btn {
+        .send-btn {
             background-color: var(--accent-color);
-            color: #131314;
             border: none;
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            color: #040e1b;
         }
 
-        .submit-btn:hover {
-            background-color: var(--accent-hover);
-        }
-
-        .submit-btn:disabled {
-            background-color: #2c2d2f;
-            color: #727477;
+        .send-btn:disabled {
+            background-color: #2b2c2f;
+            color: var(--border-color);
             cursor: not-allowed;
         }
 
-        /* Spinner */
+        /* Loading Animation */
         .loading-dots {
             display: flex;
-            gap: 4px;
-            align-items: center;
-            padding: 8px;
+            gap: 6px;
+            padding: 12px 16px;
+            background-color: var(--bubble-gemini);
+            border-radius: 16px;
+            width: fit-content;
         }
 
         .dot {
@@ -350,59 +545,342 @@
             height: 8px;
             background-color: var(--accent-color);
             border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both;
+            animation: bounceDot 1.4s infinite ease-in-out both;
         }
 
         .dot:nth-child(1) { animation-delay: -0.32s; }
         .dot:nth-child(2) { animation-delay: -0.16s; }
 
-        @keyframes bounce {
+        @keyframes bounceDot {
             0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1.0); }
+            40% { transform: scale(1); }
         }
     </style>
 </head>
 <body>
 
+    <!-- Header -->
     <header>
         <div class="logo-container">
             <div class="logo-sparkle"></div>
-            <h1>Object Detection</h1>
+            <h1>YOLOv8 Object Detection</h1>
         </div>
-        <a href="/docs" class="api-docs-link" target="_blank">API Docs</a>
+        <div class="header-actions">
+            <div class="tab-switcher">
+                <button id="tab-chat" class="tab-btn active" onclick="switchTab('chat')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    Image Upload
+                </button>
+                <button id="tab-live" class="tab-btn" onclick="switchTab('live')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 7l-7 5 7 5V7z"></path>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                    Live Camera
+                </button>
+            </div>
+            <a href="/docs" target="_blank" class="api-docs-link">API Docs</a>
+        </div>
     </header>
 
-    <main id="chat-feed">
-        <div class="empty-state" id="empty-state">
-            <div class="logo-sparkle" style="width: 48px; height: 48px; margin-bottom: 8px;"></div>
-            <h2 class="empty-title">Detect objects instantly</h2>
-            <p class="empty-subtitle">Upload any image file to visualize bounding boxes and receive class confidence mappings using Faster R-CNN ResNet-50.</p>
-        </div>
-    </main>
+    <!-- ── 1. Live Camera View ──────────────────────────────────────── -->
+    <div id="live-view" class="view-content">
+        <div class="camera-grid">
+            <div class="video-viewport">
+                <video id="webcam-video" autoplay playsinline muted></video>
+                <canvas id="live-canvas"></canvas>
 
-    <div class="input-outer-container">
-        <div class="input-wrapper">
-            <div class="upload-btn-container">
-                <input type="file" id="image-loader" class="file-input" accept="image/jpeg,image/png,image/webp,image/bmp">
-                <button class="attach-btn" onclick="document.getElementById('image-loader').click()" title="Upload Image">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <div id="camera-placeholder" class="camera-placeholder">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 7l-7 5 7 5V7z"></path>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                    <div>
+                        <p style="font-weight: 500; font-size: 16px; color: var(--text-color);">Camera is idle</p>
+                        <p style="font-size: 13px;">Click "Start Camera" to enable real-time YOLO object detection.</p>
+                    </div>
+                </div>
+
+                <div id="live-badge" class="live-badge">
+                    <div class="live-pulse"></div>
+                    LIVE
+                </div>
+
+                <div id="hud-stats" class="hud-stats" style="display: none;">
+                    <div id="fps-chip" class="hud-chip">-- FPS</div>
+                    <div id="latency-chip" class="hud-chip">-- ms</div>
+                </div>
+            </div>
+
+            <!-- Controls Sidebar -->
+            <div class="camera-sidebar">
+                <div class="hud-card">
+                    <div class="hud-card-title">Camera Controls</div>
+                    <button id="btn-camera-toggle" class="btn-camera btn-start" onclick="toggleCamera()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Start Camera
+                    </button>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        Streaming via low-latency WebSocket (<code style="color: var(--accent-color);">/ws/live</code>).
+                    </div>
+                </div>
+
+                <div class="hud-card">
+                    <div class="hud-card-title">Active Detections (<span id="detected-count">0</span>)</div>
+                    <div id="live-objects-container" class="live-objects-list">
+                        <span style="font-size: 12px; color: var(--text-secondary);">No objects currently in frame.</span>
+                    </div>
+                </div>
+
+                <div class="hud-card">
+                    <div class="hud-card-title">Model Specifications</div>
+                    <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                        • <strong>Model:</strong> YOLOv8 Nano (<code style="color: var(--accent-color);">yolov8n.pt</code>)<br>
+                        • <strong>Dataset:</strong> COCO (80 classes)<br>
+                        • <strong>Format:</strong> Real-time frame streaming<br>
+                        • <strong>Hardware:</strong> CPU Optimized / CUDA Ready
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 2. Image Chat View ───────────────────────────────────────── -->
+    <div id="chat-view" class="view-content active">
+        <main class="chat-feed" id="chat-feed">
+            <div class="empty-state" id="empty-state">
+                <div class="logo-sparkle" style="width: 44px; height: 44px;"></div>
+                <h2 style="font-size: 22px; font-weight: 500;">What would you like to detect?</h2>
+                <p style="max-width: 440px; font-size: 14px; line-height: 1.5;">
+                    Upload any image to analyze it with <strong>YOLOv8</strong>, or switch to the <strong>Live Camera</strong> tab for real-time webcam detection.
+                </p>
+            </div>
+        </main>
+
+        <div class="bottom-bar">
+            <div class="input-box">
+                <input type="file" id="image-loader" accept="image/jpeg, image/png, image/webp, image/bmp" style="display: none;">
+                <label for="image-loader" class="upload-icon-label" title="Choose image file">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                </label>
+                <div class="file-info-text" id="file-label">Upload an image to start...</div>
+                <button class="send-btn" id="send-button" disabled title="Detect objects">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
                 </button>
             </div>
-            
-            <div class="file-info-text" id="file-label">Upload an image to start...</div>
-
-            <button class="submit-btn" id="send-button" disabled title="Detect Objects">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(45deg); margin-left: -2px; margin-top: 1px;">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-            </button>
         </div>
     </div>
 
     <script>
+        // ── Navigation Tabs ───────────────────────────────────────────
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.view-content').forEach(view => view.classList.remove('active'));
+
+            if (tab === 'chat') {
+                document.getElementById('tab-chat').classList.add('active');
+                document.getElementById('chat-view').classList.add('active');
+            } else {
+                document.getElementById('tab-live').classList.add('active');
+                document.getElementById('live-view').classList.add('active');
+            }
+        }
+
+        // ── Live Camera & WebSocket ──────────────────────────────────
+        let cameraStream = null;
+        let isStreaming = false;
+        let ws = null;
+        let frameInterval = null;
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let fpsTimer = performance.now();
+
+        const videoElem = document.getElementById('webcam-video');
+        const liveCanvas = document.getElementById('live-canvas');
+        const canvasCtx = liveCanvas.getContext('2d');
+        const placeholder = document.getElementById('camera-placeholder');
+        const liveBadge = document.getElementById('live-badge');
+        const hudStats = document.getElementById('hud-stats');
+        const fpsChip = document.getElementById('fps-chip');
+        const latencyChip = document.getElementById('latency-chip');
+        const btnToggle = document.getElementById('btn-camera-toggle');
+        const detectedCount = document.getElementById('detected-count');
+        const liveObjectsContainer = document.getElementById('live-objects-container');
+
+        // Offscreen canvas for frame capture
+        const offscreenCanvas = document.createElement('canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+
+        async function toggleCamera() {
+            if (isStreaming) {
+                stopCamera();
+            } else {
+                await startCamera();
+            }
+        }
+
+        async function startCamera() {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+                    audio: false
+                });
+
+                videoElem.srcObject = cameraStream;
+                await videoElem.play();
+
+                // Setup canvas dimensions
+                liveCanvas.width = videoElem.videoWidth || 640;
+                liveCanvas.height = videoElem.videoHeight || 480;
+                offscreenCanvas.width = 640;
+                offscreenCanvas.height = 480;
+
+                // Connect WebSocket
+                initWebSocket();
+
+                isStreaming = true;
+                placeholder.style.display = 'none';
+                liveBadge.style.display = 'flex';
+                hudStats.style.display = 'flex';
+                btnToggle.className = 'btn-camera btn-stop';
+                btnToggle.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="6" y="6" width="12" height="12"></rect>
+                    </svg>
+                    Stop Camera
+                `;
+
+            } catch (err) {
+                alert("Camera permission denied or camera not found: " + err.message);
+                console.error("Camera access error:", err);
+            }
+        }
+
+        function stopCamera() {
+            isStreaming = false;
+
+            if (frameInterval) {
+                cancelAnimationFrame(frameInterval);
+                frameInterval = null;
+            }
+
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+
+            videoElem.srcObject = null;
+            canvasCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+            placeholder.style.display = 'flex';
+            liveBadge.style.display = 'none';
+            hudStats.style.display = 'none';
+            detectedCount.textContent = '0';
+            liveObjectsContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-secondary);">No objects currently in frame.</span>';
+
+            btnToggle.className = 'btn-camera btn-start';
+            btnToggle.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                Start Camera
+            `;
+        }
+
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/live`);
+
+            ws.onopen = () => {
+                console.log("WebSocket connected. Starting frame streaming.");
+                streamNextFrame();
+            };
+
+            ws.onmessage = (event) => {
+                if (!isStreaming) return;
+
+                const data = JSON.parse(event.data);
+
+                // Render annotated image received from server
+                if (data.annotated_image) {
+                    const img = new Image();
+                    img.onload = () => {
+                        canvasCtx.drawImage(img, 0, 0, liveCanvas.width, liveCanvas.height);
+                    };
+                    img.src = data.annotated_image;
+                }
+
+                // Update latency & FPS
+                if (data.inference_time_ms) {
+                    latencyChip.textContent = `${data.inference_time_ms} ms`;
+                }
+
+                frameCount++;
+                const now = performance.now();
+                if (now - fpsTimer >= 1000) {
+                    fpsChip.textContent = `${frameCount} FPS`;
+                    frameCount = 0;
+                    fpsTimer = now;
+                }
+
+                // Update detection badges
+                if (data.detections) {
+                    detectedCount.textContent = data.detections.length;
+                    if (data.detections.length > 0) {
+                        liveObjectsContainer.innerHTML = data.detections.map(det => `
+                            <div class="object-pill">
+                                <span>${det.label}</span>
+                                <span class="score">${Math.round(det.confidence * 100)}%</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        liveObjectsContainer.innerHTML = '<span style="font-size: 12px; color: var(--text-secondary);">No objects currently in frame.</span>';
+                    }
+                }
+
+                // Send next frame after receiving response (prevents backlog)
+                requestAnimationFrame(streamNextFrame);
+            };
+
+            ws.onerror = (err) => {
+                console.error("WebSocket error:", err);
+            };
+
+            ws.onclose = () => {
+                console.log("WebSocket connection closed.");
+            };
+        }
+
+        function streamNextFrame() {
+            if (!isStreaming || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+            // Capture frame from video element to offscreen canvas
+            offscreenCtx.drawImage(videoElem, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+
+            // Export as JPEG blob and send over WebSocket
+            offscreenCanvas.toBlob((blob) => {
+                if (blob && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(blob);
+                }
+            }, 'image/jpeg', 0.7);
+        }
+
+        // ── Image Upload & Chat Interface ─────────────────────────────
         const imageLoader = document.getElementById('image-loader');
         const fileLabel = document.getElementById('file-label');
         const sendButton = document.getElementById('send-button');
@@ -422,12 +900,9 @@
         sendButton.addEventListener('click', async function() {
             if (!selectedFile) return;
 
-            // Clear empty state if visible
-            if (emptyState) {
-                emptyState.style.display = 'none';
-            }
+            if (emptyState) emptyState.style.display = 'none';
 
-            // Create User Message bubble with image preview
+            // User preview bubble
             const userMsg = document.createElement('div');
             userMsg.className = 'message user';
             
@@ -440,10 +915,10 @@
                 `;
                 chatFeed.appendChild(userMsg);
                 chatFeed.scrollTop = chatFeed.scrollHeight;
-            }
+            };
             reader.readAsDataURL(selectedFile);
 
-            // Create Loading bubble for Gemini response
+            // Gemini loading bubble
             const loadingMsg = document.createElement('div');
             loadingMsg.className = 'message gemini';
             loadingMsg.innerHTML = `
@@ -458,14 +933,12 @@
             chatFeed.appendChild(loadingMsg);
             chatFeed.scrollTop = chatFeed.scrollHeight;
 
-            // Reset input values
             const currentFile = selectedFile;
             selectedFile = null;
             imageLoader.value = '';
             fileLabel.textContent = 'Upload an image to start...';
             sendButton.disabled = true;
 
-            // Send to FastAPI /predict
             const formData = new FormData();
             formData.append('file', currentFile);
 
@@ -475,13 +948,10 @@
                     body: formData
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
                 const data = await response.json();
                 
-                // Replace loading bubble with the results
                 let tableRows = '';
                 if (data.detections && data.detections.length > 0) {
                     data.detections.forEach(det => {
@@ -515,7 +985,7 @@
                                     <line x1="16" y1="17" x2="8" y2="17"></line>
                                     <polyline points="10 9 9 9 8 9"></polyline>
                                 </svg>
-                                Detections Analysis
+                                YOLOv8 Detections Analysis
                             </div>
                             <div class="table-container">
                                 <table>

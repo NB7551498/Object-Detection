@@ -1,7 +1,8 @@
-"""API Route definitions for the object detection web application."""
+"""API Route definitions for the YOLO object detection web application."""
 
+import base64
 import os
-from fastapi import APIRouter, File, HTTPException, UploadFile, Request
+from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from app.config import (
@@ -24,8 +25,9 @@ def init_detector():
     """Initialize the global ObjectDetector service."""
     global detector
     detector = ObjectDetector(
+        model_name=MODEL_NAME,
         confidence_threshold=CONFIDENCE_THRESHOLD,
-        device=DEVICE
+        device=DEVICE,
     )
 
 
@@ -33,7 +35,7 @@ def init_detector():
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 
 
-@router.get("/", response_class=HTMLResponse, summary="Gemini-style Chat UI", tags=["frontend"])
+@router.get("/", response_class=HTMLResponse, summary="Gemini-style Chat & Live Camera UI", tags=["frontend"])
 async def get_frontend():
     """Serve the interactive web client frontend at the root route."""
     template_path = os.path.join(
@@ -73,18 +75,18 @@ async def get_model_info():
         model=MODEL_NAME,
         device=DEVICE,
         confidence_threshold=CONFIDENCE_THRESHOLD,
-        max_file_size_mb=MAX_FILE_SIZE_MB
+        max_file_size_mb=MAX_FILE_SIZE_MB,
     )
 
 
 @router.post(
     "/predict",
     response_model=DetectionResponse,
-    summary="Run object detection",
+    summary="Run object detection on image",
     tags=["inference"],
 )
 async def predict_endpoint(file: UploadFile = File(..., description="Image file to detect (JPEG, PNG, WebP, BMP)")):
-    """Accept an uploaded image, run object detection, and return boxes and labels.
+    """Accept an uploaded image, run YOLO object detection, and return boxes and labels.
 
     The response includes a structured list of detected objects (with bounding boxes
     and confidence scores) along with a base64-encoded JPEG image of the annotated results.
@@ -127,5 +129,45 @@ async def predict_endpoint(file: UploadFile = File(..., description="Image file 
     # ── Build response ───────────────────────────────────────────
     return DetectionResponse(
         detections=detections,
-        annotated_image=annotated_image_b64
+        annotated_image=annotated_image_b64,
     )
+
+
+@router.websocket("/ws/live")
+async def websocket_live_detection(websocket: WebSocket):
+    """WebSocket endpoint for real-time live webcam object detection.
+
+    Receives camera video frames (binary JPEG or base64 text) from the browser client,
+    runs low-latency YOLO inference, and streams back detection results, bounding boxes,
+    and annotated frames.
+    """
+    await websocket.accept()
+    try:
+        while True:
+            message = await websocket.receive()
+            frame_bytes = None
+
+            if "bytes" in message and message["bytes"]:
+                frame_bytes = message["bytes"]
+            elif "text" in message and message["text"]:
+                text_data = message["text"]
+                if "," in text_data:
+                    text_data = text_data.split(",", 1)[1]
+                frame_bytes = base64.b64decode(text_data)
+
+            if not frame_bytes:
+                continue
+
+            try:
+                result = detector.detect_frame(frame_bytes)
+                await websocket.send_json(result)
+            except Exception as exc:
+                await websocket.send_json({"error": str(exc), "detections": []})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        try:
+            await websocket.close()
+        except Exception:
+            pass

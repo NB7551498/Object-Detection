@@ -11,3 +11,4 @@ ENV/
 .vscode/
 .idea/
 model/model.pth
+*.pt

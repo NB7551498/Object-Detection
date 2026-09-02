@@ -49,3 +49,19 @@ def test_object_detector_inference():
         assert "ymin" in box
         assert "xmax" in box
         assert "ymax" in box
+
+
+def test_object_detector_frame_detection():
+    """Verify that detect_frame returns latency and detections for live streaming."""
+    img = Image.new("RGB", (100, 100), color="green")
+    buffered = io.BytesIO()
+    img.save(buffered, format="JPEG")
+    image_bytes = buffered.getvalue()
+
+    detector = ObjectDetector(confidence_threshold=0.5, device="cpu")
+    result = detector.detect_frame(image_bytes)
+
+    assert "detections" in result
+    assert "annotated_image" in result
+    assert "inference_time_ms" in result
+    assert isinstance(result["inference_time_ms"], float)

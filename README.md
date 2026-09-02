@@ -1,75 +1,67 @@
-# Object Detection API & Gemini-style Web UI
+# YOLOv8 Object Detection API & Gemini-style Live Camera UI
 
-An interactive, production-grade **Object Detection** service using a pre-trained **Faster R-CNN ResNet-50 FPN v2** model (COCO dataset, 80+ categories) with a sleek, responsive chat frontend styled like the **Gemini web client**.
+A high-performance, production-ready **Object Detection** service powered by **Ultralytics YOLOv8** (`yolov8n.pt`, 80 COCO categories) with a responsive chat frontend styled like the **Gemini web client** and **real-time live webcam streaming via WebSocket**.
 
 ---
 
 ## 📋 Table of Contents
 
 - [Overview](#overview)
+- [Key Features](#key-features)
 - [Project Architecture](#project-architecture)
 - [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
 - [Quick Start — Local](#quick-start--local)
-- [Quick Start — Docker](#quick-start--docker)
+- [Live Webcam Streaming](#live-webcam-streaming)
+- [API Endpoints & WebSocket](#api-endpoints--websocket)
 - [Automated Testing](#automated-testing)
-- [CI/CD Pipeline](#cicd-pipeline)
-- [API Endpoints](#api-endpoints)
 - [Configuration](#configuration)
 
 ---
 
 ## Overview
 
-This project wraps an advanced computer vision model in a **FastAPI** web service. Features include:
+This project provides end-to-end computer vision capabilities through both standard REST APIs and real-time WebSockets:
 
-- **Faster R-CNN ResNet-50 FPN v2** object detector running efficiently on CPU/GPU.
-- Real-time image annotation (bounding boxes, class labels, and confidence percentages).
-- **Gemini-style Chat UI** frontend to drag-and-drop or select images and see real-time object detection visual feeds side-by-side with tabular metadata.
-- Automated API endpoints for external integrations.
-- Pydantic schema validation for request-response safety.
-- Version-pinned dependencies and lockfile setup for maximum reproducibility.
-- Full automated test suite using `pytest` and integrated GitHub Actions CI.
+- **Ultralytics YOLOv8 Nano** (`yolov8n.pt`): Ultra-fast (~15–60ms on CPU, <5ms on GPU) object detection across 80 COCO classes.
+- **Real-time Live Webcam Streaming**: Stream frames from your browser directly to FastAPI over a low-latency bidirectional WebSocket connection (`/ws/live`).
+- **Gemini-Style Web UI**: Switch seamlessly between **Image Upload Chat** and **Live Camera** mode with real-time FPS counter, inference latency HUD, and detected object badges.
+- **REST Inference Endpoint** (`POST /predict`): Upload any image (JPEG, PNG, WebP, BMP) to receive structured bounding boxes, confidence scores, and annotated visualizations.
+- **Automated Test Suite**: Comprehensive tests using `pytest` verifying health probes, file validation, tensor shapes, and frame detection.
 
 ---
 
 ## Project Architecture
 
 ```
-                 ┌───────────────┐
-                 │    Web UI     │
-                 └───────┬───────┘
-                         │ (AJAX /predict)
-                         ▼
-                 ┌───────────────┐
-                 │  FastAPI API  │
-                 └───────┬───────┘
-                         │
-         ┌───────────────┼───────────────┐
-         ▼               ▼               ▼
-    GET /health   GET /model-info  POST /predict
-         │               │               │
-      [Status]      [Metadata]     [ML Pipeline]
-                                         │
-                                         ▼
-                                 ┌───────────────┐
-                                 │Preprocess PIL │
-                                 └───────┬───────┘
-                                         │
-                                         ▼
-                                 ┌───────────────┐
-                                 │ PyTorch Model │
-                                 └───────┬───────┘
-                                         │
-                                         ▼
-                                 ┌───────────────┐
-                                 │  Postprocess  │
-                                 └───────┬───────┘
-                                         │ (Draw Box + Label)
-                                         ▼
-                                 ┌───────────────┐
-                                 │ Base64 Image  │
-                                 └───────────────┘
+                       ┌───────────────────────────────┐
+                       │     Gemini-Style Web UI       │
+                       │   (Chat & Live Camera View)   │
+                       └──────────────┬────────────────┘
+                                      │
+               ┌──────────────────────┴──────────────────────┐
+               │ (HTTP /predict)                             │ (WebSocket /ws/live)
+               ▼                                             ▼
+       ┌───────────────┐                             ┌───────────────┐
+       │ FastAPI REST  │                             │ FastAPI WS    │
+       └───────┬───────┘                             └───────┬───────┘
+               │                                             │
+               └──────────────────────┬──────────────────────┘
+                                      ▼
+                             ┌─────────────────┐
+                             │ ObjectDetector  │
+                             │  (app/ml/...)   │
+                             └────────┬────────┘
+                                      │
+                                      ▼
+                             ┌─────────────────┐
+                             │  YOLOv8 Engine  │
+                             │  (yolov8n.pt)   │
+                             └────────┬────────┘
+                                      │
+                    ┌─────────────────┴─────────────────┐
+                    ▼                                   ▼
+             Structured Detections               Annotated Image
+             [box, class, score]               (Live Video / Base64)
 ```
 
 ---
@@ -83,143 +75,79 @@ model-detection/
 │       └── ci.yml           # GitHub Actions CI workflow
 ├── app/
 │   ├── __init__.py           # Package marker
-│   ├── main.py               # FastAPI entrypoint, lifespan configuration
+│   ├── main.py               # FastAPI entrypoint & lifespan management
 │   ├── config.py             # Environment variable configuration loading
 │   ├── schemas.py            # Pydantic schemas (Request/Response validation)
 │   ├── api/
 │   │   ├── __init__.py
-│   │   └── routes.py         # HTTP route definitions
+│   │   └── routes.py         # HTTP & WebSocket route definitions
 │   ├── ml/
 │   │   ├── __init__.py
-│   │   ├── model.py          # Faster R-CNN initialization onto CPU/GPU
-│   │   ├── preprocessing.py  # Image-to-tensor conversions
-│   │   └── inference.py      # ObjectDetector service runner & annotation logic
+│   │   ├── model.py          # YOLOv8 initialization onto CPU/GPU
+│   │   ├── preprocessing.py  # Image-to-tensor & PIL conversions
+│   │   └── inference.py      # ObjectDetector runner & real-time frame annotation
 │   └── templates/
-│       └── index.html        # Gemini-style HTML/CSS/JS frontend
+│       └── index.html        # Gemini-style Web UI (Image Chat + Live Camera)
 ├── tests/
 │   ├── __init__.py           # Package marker
 │   ├── test_health.py        # API health and model metadata tests
 │   ├── test_validation.py    # Payload size and format validation tests
-│   └── test_model.py         # Tensor shape and inference model tests
-├── Dockerfile                # Pinned production container setup
-├── .dockerignore             # Context exclusion rules
-├── requirements.txt          # Python dependency versions
+│   └── test_model.py         # YOLO inference and frame detection tests
+├── requirements.txt          # Pinned dependencies
+├── yolov8n.pt                # YOLOv8 Nano model weights
 └── README.md                 # Project documentation
 ```
 
 ---
 
-## Prerequisites
-
-| Tool    | Version | Purpose                  |
-| ------- | ------- | ------------------------ |
-| Python  | 3.11+   | Runtime                  |
-| pip     | latest  | Dependency management    |
-| Docker  | 20.10+  | Containerization         |
-
----
-
 ## Quick Start — Local
 
-### 1. Clone & enter the project
+### 1. Activate Environment & Install Dependencies
 
 ```bash
-cd model-deployment
-```
-
-### 2. Create a virtual environment
-
-```bash
-python -m venv .venv
-
 # Windows
 .venv\Scripts\activate
 
-# macOS / Linux
+# Linux / macOS
 source .venv/bin/activate
-```
 
-### 3. Install dependencies
-
-```bash
-# Install CPU-only PyTorch (much smaller download ~200MB)
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
-# Install remaining dependencies
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 4. Start the server
+### 2. Start the Server
 
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-- Open **[http://localhost:8000/](http://localhost:8000/)** in your browser to access the Gemini Chat UI.
-- Open **[http://localhost:8000/docs](http://localhost:8000/)** to access the Swagger API docs.
+- Open **[http://localhost:8000/](http://localhost:8000/)** to access the interactive Gemini UI.
+- Open **[http://localhost:8000/docs](http://localhost:8000/docs)** to view the interactive OpenAPI documentation.
 
 ---
 
-## Quick Start — Docker
+## Live Webcam Streaming
 
-### 1. Build the image
-
-```bash
-docker build -t object-detection-app .
-```
-
-### 2. Run the container
-
-```bash
-docker run -p 8000:8000 object-detection-app
-```
+1. Open `http://localhost:8000/` in Chrome, Firefox, or Edge.
+2. Click on the **"Live Camera"** tab in the top header.
+3. Click the **"Start Camera"** button and allow camera permission.
+4. The system will stream your webcam video frames over WebSocket to the YOLO backend, drawing bounding boxes and labels with a live FPS meter and detection counter in real time!
 
 ---
 
-## Automated Testing
-
-The project uses `pytest` and `httpx` for API testing. The tests verify endpoints, validation constraints, and the ML preprocessing shapes.
-
-To run the test suite locally:
-
-```bash
-pytest
-```
-
-**Output**:
-```
-tests\test_health.py ..                                                  [ 28%]
-tests\test_model.py ..                                                   [ 57%]
-tests\test_validation.py ...                                             [100%]
-======================= 7 passed in 21.71s ========================
-```
-
----
-
-## CI/CD Pipeline
-
-A continuous integration workflow is set up via **GitHub Actions** (`.github/workflows/ci.yml`). 
-On every `push` or `pull_request` to `main` and `learn` branches:
-1. The codebase is checked out.
-2. Python 3.11 is set up with caching enabled.
-3. Dependencies are installed using the fast CPU-only PyTorch index.
-4. The complete `pytest` test suite is executed.
-
----
-
-## API Endpoints
+## API Endpoints & WebSocket
 
 ### `GET /`
-Serves the Gemini-style frontend.
+Serves the Gemini-style dual-mode frontend.
 
 ### `GET /health`
 Returns `{"status": "ok"}` for uptime verification.
 
 ### `GET /model-info`
-Returns active configuration parameters.
+Returns active configuration parameters:
 ```json
 {
-  "model": "fasterrcnn_resnet50_fpn_v2",
+  "model": "yolov8n.pt",
   "device": "cpu",
   "confidence_threshold": 0.5,
   "max_file_size_mb": 15
@@ -227,22 +155,20 @@ Returns active configuration parameters.
 ```
 
 ### `POST /predict`
-Performs object detection on uploaded image.
-
-**Request**: `multipart/form-data` with `file` field. (JPEG, PNG, WebP, BMP | Max: 15 MB)
-
-**Response**:
+Upload an image to run YOLO object detection.
+- **Request**: `multipart/form-data` with `file` field. (JPEG, PNG, WebP, BMP | Max: 15 MB)
+- **Response**:
 ```json
 {
   "detections": [
     {
-      "label": "apple",
-      "confidence": 0.9993,
+      "label": "person",
+      "confidence": 0.9234,
       "box": {
-        "xmin": 36.4,
-        "ymin": 76.5,
-        "xmax": 352.1,
-        "ymax": 420.3
+        "xmin": 45.2,
+        "ymin": 88.0,
+        "xmax": 210.5,
+        "ymax": 450.1
       }
     }
   ],
@@ -250,15 +176,45 @@ Performs object detection on uploaded image.
 }
 ```
 
+### `WebSocket /ws/live`
+Bidirectional WebSocket stream for real-time video frames.
+- **Client sends**: Binary JPEG blob or Base64 string.
+- **Server returns**:
+```json
+{
+  "detections": [...],
+  "annotated_image": "data:image/jpeg;base64,...",
+  "inference_time_ms": 18.5
+}
+```
+
+---
+
+## Automated Testing
+
+To run the complete test suite locally:
+
+```bash
+pytest
+```
+
+**Result**:
+```
+tests\test_health.py ..                                                  [ 25%]
+tests\test_model.py ...                                                  [ 62%]
+tests\test_validation.py ...                                             [100%]
+======================= 8 passed in 17.93s ========================
+```
+
 ---
 
 ## Configuration
 
-The application configures itself using environment variables (with safe fallbacks):
+Configure the application via environment variables (with safe defaults):
 
 | Environment Variable | Default | Description |
 | -------------------- | ------- | ----------- |
-| `CONFIDENCE_THRESHOLD`| `0.5` | Minimum score to keep detection |
-| `MODEL_NAME`         | `fasterrcnn_resnet50_fpn_v2` | PyTorch torchvision model identifier |
+| `CONFIDENCE_THRESHOLD`| `0.5` | Minimum score to retain detection |
+| `MODEL_NAME`         | `yolov8n.pt` | YOLO model weights (e.g. `yolov8n.pt`, `yolov8s.pt`, `yolo11n.pt`) |
 | `MAX_FILE_SIZE_MB`   | `15` | Maximum upload size in Megabytes |
 | `DEVICE`             | auto-detected | Compute target (`cpu` or `cuda`) |

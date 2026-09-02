@@ -6,8 +6,8 @@ import torch
 # Confidence threshold to filter weak detections
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
 
-# Underlyng model name (e.g., fasterrcnn_resnet50_fpn_v2)
-MODEL_NAME = os.getenv("MODEL_NAME", "fasterrcnn_resnet50_fpn_v2")
+# Underlying YOLO model name (e.g., yolov8n.pt, yolov8s.pt, yolo11n.pt)
+MODEL_NAME = os.getenv("MODEL_NAME", "yolov8n.pt")
 
 # Maximum upload file size in Megabytes
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "15"))
@@ -21,9 +21,9 @@ DEVICE = os.getenv(
 )
 
 # API Metadata configuration
-API_TITLE = "Object Detection API"
-API_VERSION = "2.0.0"
+API_TITLE = "YOLOv8 Object Detection & Live Webcam API"
+API_VERSION = "3.0.0"
 API_DESCRIPTION = (
-    "A production-ready modular REST API and web UI that performs object "
-    "detection using Faster R-CNN. Part of the internSpark program (Task 3 of 4)."
+    "A production-ready modular REST and WebSocket API with real-time live "
+    "webcam streaming powered by Ultralytics YOLOv8."
 )

@@ -1,30 +1,20 @@
-"""Model loading module for object detection.
+"""Model loading module for YOLO object detection.
 
-Loads the pre-trained Faster R-CNN model weights and maps it to the
-designated compute device.
+Loads the YOLOv8 model from ultralytics and maps it to the designated compute device.
 """
 
-import torch
-from torchvision.models.detection import (
-    fasterrcnn_resnet50_fpn_v2,
-    FasterRCNN_ResNet50_FPN_V2_Weights,
-)
-
-# Load COCO categories from weights metadata
-_WEIGHTS = FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
-COCO_CLASSES = _WEIGHTS.meta["categories"]
+from ultralytics import YOLO
 
 
-def load_model(device: str = "cpu") -> torch.nn.Module:
-    """Load the pre-trained Faster R-CNN ResNet50 FPN v2 model.
+def load_model(model_name: str = "yolov8n.pt", device: str = "cpu") -> YOLO:
+    """Load the YOLO object detection model.
 
     Args:
-        device: The target compute device (e.g. 'cpu', 'cuda').
+        model_name: Path or identifier of the YOLO weights (default 'yolov8n.pt').
+        device: Target compute device ('cpu', 'cuda', etc.).
 
     Returns:
-        The loaded model placed on the specified device in evaluation mode.
+        The initialized YOLO model instance.
     """
-    model = fasterrcnn_resnet50_fpn_v2(weights=_WEIGHTS)
-    model.to(device)
-    model.eval()
+    model = YOLO(model_name)
     return model
