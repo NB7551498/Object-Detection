@@ -86,14 +86,49 @@ class ObjectDetector:
             image_bytes: Raw JPEG/PNG frame bytes.
 
         Returns:
-            A dict with detections, annotated_image base64, and latency in ms.
+            A dict with detections and latency in ms (omits base64 encoding for max FPS).
         """
         start_time = time.time()
-        detections, annotated_image_b64 = self.detect(image_bytes)
+        
+        # Preprocess and detect without generating the annotated image
+        pil_image, _ = preprocess_image(image_bytes, device=self.device)
+        results = self.model.predict(
+            source=pil_image,
+            conf=self.confidence_threshold,
+            device=self.device,
+            verbose=False
+        )
+        
+        result = results[0]
+        boxes = result.boxes
+        names = result.names
+        
+        detections = []
+        if boxes is not None and len(boxes) > 0:
+            xyxy = boxes.xyxy.cpu().numpy()
+            confs = boxes.conf.cpu().numpy()
+            clss = boxes.cls.cpu().numpy().astype(int)
+
+            for i in range(len(xyxy)):
+                cls_id = clss[i]
+                label = names.get(cls_id, f"object_{cls_id}")
+                conf = float(confs[i])
+                box_coords = xyxy[i].tolist()
+
+                detections.append({
+                    "label": label,
+                    "confidence": round(conf, 4),
+                    "box": {
+                        "xmin": round(box_coords[0], 1),
+                        "ymin": round(box_coords[1], 1),
+                        "xmax": round(box_coords[2], 1),
+                        "ymax": round(box_coords[3], 1)
+                    }
+                })
+
         inference_time_ms = round((time.time() - start_time) * 1000, 1)
 
         return {
             "detections": detections,
-            "annotated_image": annotated_image_b64,
             "inference_time_ms": inference_time_ms
         }

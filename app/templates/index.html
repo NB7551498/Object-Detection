@@ -56,19 +56,6 @@
             gap: 12px;
         }
 
-        .logo-sparkle {
-            width: 24px;
-            height: 24px;
-            background: linear-gradient(135deg, #7a9cff, #9ba8ff, #ffbcff);
-            clip-path: polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%);
-            animation: rotateSparkle 8s infinite linear;
-        }
-
-        @keyframes rotateSparkle {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
         h1 {
             font-size: 19px;
             font-weight: 500;
@@ -562,7 +549,6 @@
     <!-- Header -->
     <header>
         <div class="logo-container">
-            <div class="logo-sparkle"></div>
             <h1>YOLOv8 Object Detection</h1>
         </div>
         <div class="header-actions">
@@ -655,7 +641,6 @@
     <div id="chat-view" class="view-content active">
         <main class="chat-feed" id="chat-feed">
             <div class="empty-state" id="empty-state">
-                <div class="logo-sparkle" style="width: 44px; height: 44px;"></div>
                 <h2 style="font-size: 22px; font-weight: 500;">What would you like to detect?</h2>
                 <p style="max-width: 440px; font-size: 14px; line-height: 1.5;">
                     Upload any image to analyze it with <strong>YOLOv8</strong>, or switch to the <strong>Live Camera</strong> tab for real-time webcam detection.
@@ -802,6 +787,9 @@
             `;
         }
 
+        let latestDetections = [];
+        let renderLoop = null;
+
         function initWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${protocol}//${window.location.host}/ws/live`);
@@ -809,21 +797,16 @@
             ws.onopen = () => {
                 console.log("WebSocket connected. Starting frame streaming.");
                 streamNextFrame();
+                
+                // Start local render loop
+                if (renderLoop) cancelAnimationFrame(renderLoop);
+                renderLoop = requestAnimationFrame(renderLiveFeed);
             };
 
             ws.onmessage = (event) => {
                 if (!isStreaming) return;
 
                 const data = JSON.parse(event.data);
-
-                // Render annotated image received from server
-                if (data.annotated_image) {
-                    const img = new Image();
-                    img.onload = () => {
-                        canvasCtx.drawImage(img, 0, 0, liveCanvas.width, liveCanvas.height);
-                    };
-                    img.src = data.annotated_image;
-                }
 
                 // Update latency & FPS
                 if (data.inference_time_ms) {
@@ -838,9 +821,11 @@
                     fpsTimer = now;
                 }
 
-                // Update detection badges
+                // Update latest detections for render loop
                 if (data.detections) {
+                    latestDetections = data.detections;
                     detectedCount.textContent = data.detections.length;
+                    
                     if (data.detections.length > 0) {
                         liveObjectsContainer.innerHTML = data.detections.map(det => `
                             <div class="object-pill">
@@ -853,8 +838,8 @@
                     }
                 }
 
-                // Send next frame after receiving response (prevents backlog)
-                requestAnimationFrame(streamNextFrame);
+                // Trigger next frame processing
+                streamNextFrame();
             };
 
             ws.onerror = (err) => {
@@ -863,7 +848,47 @@
 
             ws.onclose = () => {
                 console.log("WebSocket connection closed.");
+                if (renderLoop) {
+                    cancelAnimationFrame(renderLoop);
+                    renderLoop = null;
+                }
             };
+        }
+
+        function renderLiveFeed() {
+            if (!isStreaming) return;
+
+            // Draw local video directly to canvas
+            canvasCtx.drawImage(videoElem, 0, 0, liveCanvas.width, liveCanvas.height);
+
+            // Draw bounding boxes from latest detections
+            latestDetections.forEach(det => {
+                const box = det.box;
+                const x = box.xmin * (liveCanvas.width / offscreenCanvas.width);
+                const y = box.ymin * (liveCanvas.height / offscreenCanvas.height);
+                const width = (box.xmax - box.xmin) * (liveCanvas.width / offscreenCanvas.width);
+                const height = (box.ymax - box.ymin) * (liveCanvas.height / offscreenCanvas.height);
+
+                // Draw Box
+                canvasCtx.strokeStyle = '#34c759'; // Apple green
+                canvasCtx.lineWidth = 3;
+                canvasCtx.strokeRect(x, y, width, height);
+
+                // Draw Label Background
+                canvasCtx.fillStyle = '#34c759';
+                const text = `${det.label} ${Math.round(det.confidence * 100)}%`;
+                const textWidth = canvasCtx.measureText(text).width;
+                canvasCtx.fillRect(x, y - 25, textWidth + 10, 25);
+
+                // Draw Label Text
+                canvasCtx.fillStyle = '#ffffff';
+                canvasCtx.font = '14px Outfit, sans-serif';
+                canvasCtx.fontWeight = 'bold';
+                canvasCtx.fillText(text, x + 5, y - 7);
+            });
+
+            // Loop
+            renderLoop = requestAnimationFrame(renderLiveFeed);
         }
 
         function streamNextFrame() {
@@ -872,12 +897,12 @@
             // Capture frame from video element to offscreen canvas
             offscreenCtx.drawImage(videoElem, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
 
-            // Export as JPEG blob and send over WebSocket
+            // Export as JPEG blob and send over WebSocket (Reduced quality to 0.5 for massive FPS boost)
             offscreenCanvas.toBlob((blob) => {
                 if (blob && ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(blob);
                 }
-            }, 'image/jpeg', 0.7);
+            }, 'image/jpeg', 0.5);
         }
 
         // ── Image Upload & Chat Interface ─────────────────────────────
