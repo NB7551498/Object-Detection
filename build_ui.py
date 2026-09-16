@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+html_content = r'''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1049,4 +1049,9 @@
         updateDashboard();
     </script>
 </body>
-</html>
+</html>'''
+
+with open('app/templates/index.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print("UI successfully built.")
