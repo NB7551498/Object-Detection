@@ -1,1057 +1,1249 @@
-html_content = r'''<!DOCTYPE html>
+"""
+VisionAI – complete UI builder.
+Run this script from the repo root to regenerate app/templates/index.html.
+"""
+import os, pathlib
+
+HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisionAI — Intelligent Object Detection</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-base: #0B0F14;
-            --bg-surface: #111820;
-            --bg-surface-secondary: #151D26;
-            --border: #202934;
-            --accent: #7C3AED;
-            --accent-hover: #6D28D9;
-            --text-primary: #F5F7FA;
-            --text-secondary: #8B95A5;
-            --success: #22C55E;
-            --warning: #F59E0B;
-            --danger: #EF4444;
-            
-            --sidebar-width: 260px;
-            --header-height: 64px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VisionAI — Intelligent Object Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Design tokens ─── */
+    :root {
+      --bg:       #0B0F14;
+      --surface:  #111820;
+      --surface2: #151D26;
+      --border:   #1E2A38;
+      --border2:  #28384A;
+      --accent:   #7C3AED;
+      --accent-h: #6D28D9;
+      --accent-lo:rgba(124,58,237,.12);
+      --text:     #F0F4F9;
+      --text2:    #7E8FA3;
+      --text3:    #4A5A6E;
+      --ok:       #22C55E;
+      --warn:     #F59E0B;
+      --err:      #EF4444;
+      --ok-lo:    rgba(34,197,94,.12);
+      --warn-lo:  rgba(245,158,11,.12);
+      --err-lo:   rgba(239,68,68,.12);
+      --side:     228px;
+      --hdr:      56px;
+      --r:        6px;
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-        }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            background-color: var(--bg-base);
-            color: var(--text-primary);
-            height: 100vh;
-            display: flex;
-            overflow: hidden;
-            font-size: 14px;
-        }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
 
-        /* ── Typography & Globals ── */
-        h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
-        h2 { font-size: 18px; font-weight: 500; letter-spacing: -0.01em; color: var(--text-primary); }
-        p { color: var(--text-secondary); line-height: 1.5; }
-        
-        button {
-            cursor: pointer;
-            border: none;
-            outline: none;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-        }
+    /* ─── Sidebar ─── */
+    .sidebar {
+      width: var(--side);
+      min-width: var(--side);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-        .btn-primary {
-            background-color: var(--accent);
-            color: #fff;
-            padding: 10px 18px;
-            border-radius: 6px;
-        }
-        .btn-primary:hover { background-color: var(--accent-hover); }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .brand {
+      height: var(--hdr);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 9px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .brand-mark {
+      width: 26px; height: 26px;
+      background: var(--accent);
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -.3px; }
+    .brand-sub  { font-size: 10px; color: var(--text3); letter-spacing: .3px; text-transform: uppercase; margin-top: 1px; }
 
-        .btn-secondary {
-            background-color: transparent;
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-            padding: 9px 17px;
-            border-radius: 6px;
-        }
-        .btn-secondary:hover {
-            background-color: var(--bg-surface-secondary);
-            border-color: #313D4C;
-        }
+    .nav { flex: 1; padding: 12px 8px; overflow-y: auto; }
+    .nav-group { margin-bottom: 24px; }
+    .nav-label {
+      font-size: 10px; font-weight: 600; color: var(--text3);
+      text-transform: uppercase; letter-spacing: .6px;
+      padding: 0 10px; margin-bottom: 6px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: var(--r);
+      color: var(--text2); font-size: 13.5px; font-weight: 500;
+      cursor: pointer; transition: background .12s, color .12s;
+      user-select: none;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent-lo); color: var(--accent); }
+    .nav-item svg { flex-shrink: 0; opacity: .85; }
 
-        /* ── Layout ── */
-        .sidebar {
-            width: var(--sidebar-width);
-            background-color: var(--bg-surface);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            z-index: 20;
-        }
+    .sidebar-footer {
+      padding: 12px 8px;
+      border-top: 1px solid var(--border);
+    }
 
-        .brand {
-            height: var(--header-height);
-            display: flex;
-            align-items: center;
-            padding: 0 24px;
-            border-bottom: 1px solid var(--border);
-            font-weight: 700;
-            font-size: 16px;
-            letter-spacing: 0.5px;
-            gap: 10px;
-        }
+    /* ─── Main ─── */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-        .brand-icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-            background: var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+    .topbar {
+      height: var(--hdr);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .topbar-title { font-size: 15px; font-weight: 600; }
+    .topbar-actions { display: flex; gap: 8px; align-items: center; }
 
-        .nav-section {
-            padding: 24px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
+    .content { flex: 1; overflow-y: auto; padding: 28px 32px; }
 
-        .nav-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 0 12px;
-            margin-bottom: 8px;
-        }
+    .view { display: none; flex-direction: column; gap: 28px; max-width: 1120px; margin: 0 auto; }
+    .view.active { display: flex; }
 
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
-            border-radius: 6px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: all 0.15s;
-            cursor: pointer;
-        }
+    /* ─── Typography ─── */
+    .page-title   { font-size: 22px; font-weight: 700; letter-spacing: -.4px; line-height: 1.2; }
+    .page-sub     { font-size: 13.5px; color: var(--text2); margin-top: 5px; }
+    .section-title{ font-size: 14px; font-weight: 600; }
 
-        .nav-item:hover {
-            background-color: var(--bg-surface-secondary);
-            color: var(--text-primary);
-        }
+    /* ─── Buttons ─── */
+    button { font-family: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; border: none; outline: none; }
 
-        .nav-item.active {
-            background-color: rgba(124, 58, 237, 0.1);
-            color: var(--accent);
-            font-weight: 500;
-        }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: var(--r);
+      transition: background .12s, border-color .12s, opacity .12s;
+    }
+    .btn-primary  { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-h); }
+    .btn-primary:disabled { opacity: .4; cursor: default; }
+    .btn-ghost {
+      background: transparent; color: var(--text2);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+    .btn-danger { background: var(--err-lo); color: var(--err); border: 1px solid rgba(239,68,68,.2); }
+    .btn-danger:hover { background: rgba(239,68,68,.2); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
 
-        .main-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
+    /* ─── Stats ─── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+    .stat {
+      background: var(--surface);
+      padding: 18px 20px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .stat-label { font-size: 12px; color: var(--text2); font-weight: 500; }
+    .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -.5px; color: var(--text); line-height: 1; }
+    .stat-value small { font-size: 13px; font-weight: 500; color: var(--text2); }
 
-        .header {
-            height: var(--header-height);
-            border-bottom: 1px solid var(--border);
-            background-color: var(--bg-base);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 32px;
-        }
+    /* ─── Cards ─── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+    }
+    .card-hd {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .card-bd { padding: 20px; }
 
-        .header-title {
-            font-size: 16px;
-            font-weight: 500;
-        }
+    /* ─── Upload Zone ─── */
+    .upload-zone {
+      border: 1.5px dashed var(--border2);
+      border-radius: 8px;
+      padding: 56px 32px;
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; cursor: pointer;
+      transition: border-color .15s, background .15s;
+      background: var(--surface);
+    }
+    .upload-zone:hover, .upload-zone.over {
+      border-color: var(--accent);
+      background: var(--accent-lo);
+    }
+    .upload-icon-wrap {
+      width: 52px; height: 52px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+      color: var(--text2);
+    }
+    .upload-zone h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+    .upload-zone p  { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+    .upload-formats {
+      display: flex; gap: 8px; margin-top: 16px;
+    }
+    .fmt-badge {
+      font-size: 11px; font-weight: 600; padding: 3px 8px;
+      border-radius: 4px; background: var(--surface2); color: var(--text2);
+      border: 1px solid var(--border2); letter-spacing: .3px;
+    }
 
-        .header-actions {
-            display: flex;
-            gap: 12px;
-        }
+    /* ─── Processing state ─── */
+    .process-wrap {
+      display: none; flex-direction: column; align-items: center;
+      gap: 24px; padding: 56px 32px;
+      background: var(--surface); border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .process-steps { display: flex; flex-direction: column; gap: 10px; min-width: 260px; }
+    .pstep {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13.5px; color: var(--text2);
+    }
+    .pstep.done  { color: var(--ok); }
+    .pstep.active{ color: var(--text); }
+    .pstep-icon {
+      width: 20px; height: 20px;
+      border-radius: 50%; border: 1.5px solid currentColor;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 10px;
+    }
+    .pstep.done  .pstep-icon { background: var(--ok); border-color: var(--ok); color: #fff; }
+    .pstep.active .pstep-icon { border-color: var(--accent); }
+    .pstep-spinner {
+      width: 16px; height: 16px;
+      border: 2px solid var(--border2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
 
-        .content-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 32px;
-            position: relative;
-        }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-        .view { display: none; flex-direction: column; gap: 32px; max-width: 1200px; margin: 0 auto; width: 100%; }
-        .view.active { display: flex; }
+    /* ─── Results layout ─── */
+    .results-grid {
+      display: none; grid-template-columns: 1fr 320px; gap: 20px; align-items: start;
+    }
+    .img-wrap {
+      background: #000; border-radius: var(--r);
+      border: 1px solid var(--border);
+      overflow: hidden; display: flex; align-items: center; justify-content: center;
+      min-height: 360px; position: relative;
+    }
+    .img-wrap img { max-width: 100%; max-height: 70vh; display: block; object-fit: contain; }
 
-        /* ── Cards & UI Elements ── */
-        .card {
-            background-color: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 24px;
-        }
+    /* ─── Table ─── */
+    .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tbl th {
+      text-align: left; padding: 10px 14px;
+      font-size: 11.5px; font-weight: 600; color: var(--text2);
+      text-transform: uppercase; letter-spacing: .4px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .tbl td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    .tbl tr:last-child td { border-bottom: none; }
+    .tbl tr:hover td { background: var(--surface2); }
+    .tbl .obj-name { font-weight: 500; text-transform: capitalize; }
 
-        .card-header {
-            margin-bottom: 20px;
-        }
+    /* ─── Confidence bar ─── */
+    .conf-cell { display: flex; align-items: center; gap: 8px; }
+    .conf-bar-wrap { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+    .conf-bar { height: 100%; border-radius: 2px; background: var(--ok); }
+    .conf-bar.warn { background: var(--warn); }
+    .conf-val { font-size: 12px; color: var(--text2); min-width: 36px; text-align: right; }
 
-        .card-title {
-            font-size: 15px;
-            font-weight: 500;
-            margin-bottom: 4px;
-        }
+    /* ─── Status badge ─── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 100px;
+      font-size: 11.5px; font-weight: 500;
+    }
+    .badge-ok   { background: var(--ok-lo); color: var(--ok); }
+    .badge-warn { background: var(--warn-lo); color: var(--warn); }
+    .badge-err  { background: var(--err-lo); color: var(--err); }
+    .badge-neu  { background: var(--surface2); color: var(--text2); }
 
-        .card-desc {
-            font-size: 13px;
-        }
+    /* ─── Workspace tabs ─── */
+    .ws-tabs {
+      display: flex; gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .ws-tab {
+      padding: 10px 18px; font-size: 13.5px; font-weight: 500;
+      color: var(--text2); background: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: color .12s, border-color .12s;
+    }
+    .ws-tab:hover { color: var(--text); }
+    .ws-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-        /* ── Dashboard Stats ── */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
-        }
+    /* ─── Live Camera ─── */
+    .live-wrap { display: none; flex-direction: column; gap: 16px; }
+    .live-vp {
+      position: relative; background: #000;
+      border-radius: var(--r); border: 1px solid var(--border);
+      overflow: hidden; aspect-ratio: 4/3;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 400px;
+    }
+    #webcam-video { display: none; }
+    #live-canvas  { width: 100%; height: 100%; object-fit: contain; }
 
-        .stat-card {
-            background-color: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
+    .live-hud {
+      position: absolute; top: 14px; left: 14px; right: 14px;
+      display: flex; justify-content: space-between;
+      pointer-events: none;
+    }
+    .hud-row { display: flex; gap: 6px; }
+    .hud-pill {
+      padding: 4px 10px; border-radius: 100px;
+      font-size: 11.5px; font-weight: 600; letter-spacing: .3px;
+      background: rgba(11,15,20,.75); backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,.08); color: var(--text);
+    }
+    .hud-pill.live {
+      background: rgba(239,68,68,.85); border-color: transparent; color: #fff;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .dot { width: 5px; height: 5px; background: #fff; border-radius: 50%; animation: blink 1.3s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-        .stat-label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
+    /* ─── History ─── */
+    .hist-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background .1s;
+    }
+    .hist-item:last-child { border-bottom: none; }
+    .hist-item:hover { background: var(--surface2); }
+    .hist-thumb {
+      width: 44px; height: 44px; border-radius: 5px;
+      background: var(--surface2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--text3);
+    }
+    .hist-meta { flex: 1; min-width: 0; }
+    .hist-name { font-weight: 500; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hist-detail{ font-size: 12px; color: var(--text2); margin-top: 2px; }
 
-        .stat-value {
-            font-size: 28px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
+    /* ─── Settings rows ─── */
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label  { font-size: 13.5px; font-weight: 500; }
+    .setting-desc   { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .setting-val    { font-size: 13px; color: var(--text2); font-family: monospace; }
 
-        /* ── Workspace / Upload ── */
-        .workspace-tabs {
-            display: flex;
-            gap: 4px;
-            background-color: var(--bg-surface);
-            padding: 4px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            width: fit-content;
-            margin-bottom: 24px;
-        }
+    /* ─── Model page ─── */
+    .model-card {
+      display: flex; align-items: flex-start; gap: 16px;
+      padding: 20px;
+    }
+    .model-icon {
+      width: 46px; height: 46px; border-radius: 8px;
+      background: var(--accent-lo); border: 1px solid rgba(124,58,237,.3);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); flex-shrink: 0;
+    }
+    .model-name { font-size: 16px; font-weight: 700; }
+    .model-sub  { font-size: 12.5px; color: var(--text2); margin-top: 3px; }
+    .model-props{
+      margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .model-prop {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 10px 12px;
+    }
+    .model-prop-k { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing:.4px; }
+    .model-prop-v { font-size: 14px; font-weight: 600; margin-top: 4px; }
 
-        .ws-tab {
-            padding: 8px 16px;
-            border-radius: 4px;
-            background: transparent;
-            color: var(--text-secondary);
-            font-size: 13px;
-        }
-        .ws-tab.active {
-            background-color: var(--bg-surface-secondary);
-            color: var(--text-primary);
-            font-weight: 500;
-        }
+    /* ─── Analytics ─── */
+    .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+    .bar-row   { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+    .bar-label { min-width: 90px; text-transform: capitalize; color: var(--text2); font-size: 12.5px; }
+    .bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 4px; background: var(--accent); transition: width .4s ease; }
+    .bar-num   { min-width: 30px; text-align: right; font-size: 12px; color: var(--text2); }
 
-        .upload-zone {
-            border: 1px dashed var(--border);
-            border-radius: 8px;
-            padding: 60px 24px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            background-color: rgba(17, 24, 32, 0.3);
-            transition: all 0.2s;
-            cursor: pointer;
-        }
+    /* ─── Empty / Error states ─── */
+    .empty {
+      padding: 52px 24px; display: flex; flex-direction: column;
+      align-items: center; text-align: center; gap: 10px;
+    }
+    .empty-icon { color: var(--text3); margin-bottom: 6px; opacity: .6; }
+    .empty h3   { font-size: 15px; font-weight: 600; }
+    .empty p    { font-size: 13px; color: var(--text2); max-width: 280px; }
 
-        .upload-zone:hover, .upload-zone.dragover {
-            background-color: rgba(124, 58, 237, 0.05);
-            border-color: var(--accent);
-        }
+    .err-box {
+      display: none; padding: 11px 14px;
+      background: var(--err-lo); border: 1px solid rgba(239,68,68,.2);
+      color: var(--err); border-radius: var(--r); font-size: 13px;
+      margin-bottom: 20px;
+    }
 
-        .upload-icon {
-            color: var(--text-secondary);
-            margin-bottom: 16px;
-        }
+    /* ─── Toasts ─── */
+    .toast-stack {
+      position: fixed; bottom: 20px; right: 20px;
+      display: flex; flex-direction: column-reverse; gap: 8px;
+      z-index: 999; pointer-events: none;
+    }
+    .toast {
+      pointer-events: all;
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--r); padding: 11px 14px;
+      font-size: 13px; color: var(--text);
+      display: flex; align-items: center; gap: 9px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
+      opacity: 0; transform: translateY(6px);
+      animation: toast-in .18s forwards;
+      max-width: 320px;
+    }
+    @keyframes toast-in { to { opacity:1; transform:translateY(0); } }
 
-        .upload-text-main {
-            font-size: 15px;
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
+    /* ─── Divider ─── */
+    .divider { height: 1px; background: var(--border); }
 
-        .upload-text-sub {
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin-bottom: 24px;
-        }
+    /* ─── Mobile ─── */
+    .ham { display: none; background: none; padding: 6px; border-radius: var(--r); color: var(--text2); }
+    .ham:hover { background: var(--surface2); color: var(--text); }
 
-        /* ── Workspace / Results ── */
-        .results-layout {
-            display: none;
-            grid-template-columns: 1fr 340px;
-            gap: 24px;
-            align-items: start;
-        }
-
-        .image-preview-container {
-            background-color: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 400px;
-            position: relative;
-        }
-
-        .image-preview-container img {
-            max-width: 100%;
-            max-height: 70vh;
-            display: block;
-        }
-
-        /* ── Table ── */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-        }
-
-        .data-table th {
-            text-align: left;
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-weight: 500;
-            background-color: var(--bg-surface);
-        }
-
-        .data-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border);
-            color: var(--text-primary);
-        }
-
-        .data-table tr:last-child td { border-bottom: none; }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 8px;
-            border-radius: 100px;
-            font-size: 11px;
-            font-weight: 500;
-            letter-spacing: 0.3px;
-        }
-
-        .badge-success { background: rgba(34, 197, 94, 0.1); color: var(--success); }
-        .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
-
-        /* ── Live Camera ── */
-        .live-container {
-            display: none;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .live-viewport {
-            position: relative;
-            background: #000;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 480px;
-            aspect-ratio: 4/3;
-        }
-
-        #webcam-video { display: none; }
-        #live-canvas { width: 100%; height: 100%; object-fit: contain; }
-
-        .live-hud {
-            position: absolute;
-            top: 16px;
-            left: 16px;
-            right: 16px;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-        }
-
-        .hud-left { display: flex; gap: 8px; }
-        .hud-right { display: flex; gap: 8px; }
-
-        .hud-badge {
-            background: rgba(17, 24, 32, 0.8);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #fff;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            backdrop-filter: blur(4px);
-        }
-
-        .live-indicator {
-            background: rgba(239, 68, 68, 0.9);
-            border: none;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .dot-pulse {
-            width: 6px;
-            height: 6px;
-            background: #fff;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-
-        /* ── States ── */
-        .empty-state {
-            padding: 60px 24px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            color: var(--text-secondary);
-        }
-        
-        .empty-icon { margin-bottom: 16px; opacity: 0.5; }
-        .empty-title { font-size: 15px; font-weight: 500; color: var(--text-primary); margin-bottom: 8px; }
-
-        .loading-state {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            padding: 60px 24px;
-            gap: 16px;
-        }
-
-        .spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid var(--border);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin { to { transform: rotate(360deg); } }
-        
-        .error-message {
-            display: none;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            color: var(--danger);
-            padding: 12px 16px;
-            border-radius: 6px;
-            margin-bottom: 24px;
-            font-size: 13px;
-        }
-        
-        /* ── Toasts ── */
-        .toast-container {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 100;
-        }
-        
-        .toast {
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            padding: 12px 16px;
-            border-radius: 6px;
-            font-size: 13px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            opacity: 0;
-            transform: translateY(10px);
-            animation: slideIn 0.2s forwards;
-        }
-        
-        @keyframes slideIn {
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-    </style>
+    @media (max-width: 860px) {
+      body { position: relative; }
+      .sidebar {
+        position: fixed; left: -100%; top: 0; bottom: 0; z-index: 50;
+        transition: left .22s cubic-bezier(.4,0,.2,1);
+        box-shadow: 4px 0 20px rgba(0,0,0,.5);
+      }
+      .sidebar.open { left: 0; }
+      .ham { display: flex; }
+      .content { padding: 20px 18px; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .results-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 520px) {
+      .stats-row { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
 
-    <!-- Sidebar -->
-    <aside class="sidebar">
-        <div class="brand">
-            <div class="brand-icon">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 12A10 10 0 0 1 22 12"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
+<!-- ─── Sidebar ─── -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M2 12a10 10 0 0 1 20 0"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-name">VisionAI</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-group">
+      <div class="nav-label">Workspace</div>
+      <div class="nav-item active" data-view="dashboard">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" data-view="detect">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><path d="M8 2v16M16 6v16"/></svg>
+        Detect
+      </div>
+      <div class="nav-item" data-view="history">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+      </div>
+      <div class="nav-item" data-view="analytics">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Analytics
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Model</div>
+      <div class="nav-item" data-view="models">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Models
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">System</div>
+      <div class="nav-item" data-view="settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </div>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="nav-item" onclick="window.open('https://github.com/NB7551498/Object-Detection','_blank')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      GitHub
+    </div>
+    <div class="nav-item" onclick="window.open('/docs','_blank')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      API Docs
+    </div>
+  </div>
+</aside>
+
+<!-- ─── Main ─── -->
+<main class="main">
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="ham btn" id="ham-btn" aria-label="Menu" onclick="document.getElementById('sidebar').classList.toggle('open')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+    </div>
+    <div class="topbar-actions">
+      <span id="topbar-model" class="badge badge-neu" style="font-size:11.5px;">YOLOv8n</span>
+    </div>
+  </header>
+
+  <div class="content" id="content">
+
+    <!-- ═══ Dashboard ═══ -->
+    <div id="view-dashboard" class="view active">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Overview of your computer vision activity.</div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-label">Total Runs</div>
+          <div class="stat-value" id="s-runs">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Objects Found</div>
+          <div class="stat-value" id="s-objs">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Avg Confidence</div>
+          <div class="stat-value" id="s-conf">—<small>%</small></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Active Model</div>
+          <div class="stat-value" id="s-model" style="font-size:16px;line-height:1.4;">YOLOv8n</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">
+          <span class="section-title">Recent Detections</span>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('history')">View all</button>
+        </div>
+        <div id="dash-recent"></div>
+      </div>
+    </div>
+
+    <!-- ═══ Detect ═══ -->
+    <div id="view-detect" class="view">
+      <div>
+        <div class="page-title">Detection Workspace</div>
+        <div class="page-sub">Upload an image or use your camera for real-time analysis.</div>
+      </div>
+
+      <div class="ws-tabs">
+        <button class="ws-tab active" id="tab-img" onclick="switchWsTab('image')">Image Upload</button>
+        <button class="ws-tab" id="tab-live" onclick="switchWsTab('live')">Live Camera</button>
+      </div>
+
+      <div id="err-alert" class="err-box"></div>
+
+      <!-- Image mode -->
+      <div id="ws-img">
+        <div id="upload-zone" class="upload-zone" onclick="document.getElementById('file-input').click()"
+             ondragover="event.preventDefault();this.classList.add('over')"
+             ondragleave="this.classList.remove('over')"
+             ondrop="event.preventDefault();this.classList.remove('over');if(event.dataTransfer.files.length)processFile(event.dataTransfer.files[0])">
+          <div class="upload-icon-wrap">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <h3>Drop your image here</h3>
+          <p>Drag & drop an image file, or click to browse</p>
+          <button class="btn btn-ghost" style="pointer-events:none;">Browse Files</button>
+          <div class="upload-formats">
+            <span class="fmt-badge">JPG</span>
+            <span class="fmt-badge">PNG</span>
+            <span class="fmt-badge">WEBP</span>
+            <span class="fmt-badge">BMP</span>
+            <span class="fmt-badge">Max 15 MB</span>
+          </div>
+        </div>
+        <input type="file" id="file-input" accept="image/*" style="display:none" onchange="if(event.target.files.length)processFile(event.target.files[0])">
+
+        <!-- Processing -->
+        <div id="proc-wrap" class="process-wrap">
+          <div class="process-steps">
+            <div class="pstep done" id="ps-upload">
+              <div class="pstep-icon">✓</div>
+              Image uploaded
             </div>
-            VisionAI
-        </div>
-        
-        <div class="nav-section">
-            <div class="nav-label">Workspace</div>
-            <a class="nav-item active" data-view="dashboard">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                Dashboard
-            </a>
-            <a class="nav-item" data-view="detect">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                Detect
-            </a>
-            <a class="nav-item" data-view="history">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                History
-            </a>
-        </div>
-
-        <div class="nav-section" style="margin-top: auto;">
-            <div class="nav-label">System</div>
-            <a class="nav-item" data-view="settings">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                Settings
-            </a>
-        </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="main-container">
-        <header class="header">
-            <div class="header-title" id="header-title">Dashboard</div>
-            <div class="header-actions">
-                <a href="/docs" target="_blank" class="btn-secondary" style="text-decoration: none; font-size: 13px;">API Docs</a>
-                <a href="https://github.com/NB7551498/Object-Detection" target="_blank" class="btn-secondary" style="text-decoration: none; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path></svg>
-                    GitHub
-                </a>
+            <div class="pstep done" id="ps-pre">
+              <div class="pstep-icon">✓</div>
+              Preprocessing
             </div>
-        </header>
+            <div class="pstep active" id="ps-infer">
+              <div class="pstep-icon"><div class="pstep-spinner"></div></div>
+              Running object detection
+            </div>
+            <div class="pstep" id="ps-result">
+              <div class="pstep-icon" style="opacity:.4;">○</div>
+              Generating results
+            </div>
+          </div>
+        </div>
 
-        <div class="content-area">
-            
-            <!-- Dashboard View -->
-            <div id="view-dashboard" class="view active">
+        <!-- Results -->
+        <div id="results-grid" class="results-grid">
+          <div>
+            <div class="img-wrap">
+              <img id="result-img" alt="Detection result">
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="downloadResult()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="resetWorkspace()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.1"/></svg>
+                Run Again
+              </button>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div class="card" style="padding:0;">
+              <div class="card-hd" style="padding:14px 16px;">
+                <span class="section-title">Detection Results</span>
+              </div>
+              <div style="padding:12px 16px;display:flex;gap:16px;border-bottom:1px solid var(--border);flex-wrap:wrap;">
                 <div>
-                    <h1>Welcome to VisionAI</h1>
-                    <p>Analyze images and identify objects using computer vision.</p>
+                  <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Objects</div>
+                  <div style="font-size:22px;font-weight:700;" id="res-count">0</div>
                 </div>
-                
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <span class="stat-label">Total Detections</span>
-                        <span class="stat-value" id="stat-total">0</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-label">Objects Found</span>
-                        <span class="stat-value" id="stat-objects">0</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-label">Avg Confidence</span>
-                        <span class="stat-value" id="stat-conf">0%</span>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-label">Active Model</span>
-                        <span class="stat-value" style="font-size: 18px; line-height: 32px;" id="stat-model">YOLOv8 Nano</span>
-                    </div>
-                </div>
-
-                <div class="card" style="flex: 1;">
-                    <div class="card-header">
-                        <h3 class="card-title">Recent Activity</h3>
-                        <p class="card-desc">Overview of your latest detection tasks.</p>
-                    </div>
-                    <div id="dash-recent-list">
-                        <div class="empty-state" style="padding: 30px;">
-                            <span class="empty-title">No activity yet</span>
-                            <p style="font-size: 13px;">Go to the Detect workspace to analyze your first image.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Detect View -->
-            <div id="view-detect" class="view">
-                
-                <div class="workspace-tabs">
-                    <button class="ws-tab active" onclick="switchWsTab('image')">Image Upload</button>
-                    <button class="ws-tab" onclick="switchWsTab('live')">Live Camera</button>
-                </div>
-
-                <div id="error-alert" class="error-message"></div>
-
-                <!-- Image Upload Mode -->
-                <div id="ws-mode-image">
-                    
-                    <div id="upload-container" class="upload-zone" onclick="document.getElementById('file-input').click()">
-                        <svg class="upload-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                        <div class="upload-text-main">Click or drag image here</div>
-                        <div class="upload-text-sub">Supports JPG, PNG, WEBP (Max 15MB)</div>
-                        <button class="btn-secondary" style="pointer-events: none;">Browse Files</button>
-                    </div>
-                    <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
-
-                    <div id="processing-state" class="loading-state">
-                        <div class="spinner"></div>
-                        <div style="font-weight: 500;">Analyzing image...</div>
-                        <div style="font-size: 13px; color: var(--text-secondary);">Running YOLO object detection</div>
-                    </div>
-
-                    <div id="results-container" class="results-layout">
-                        <div class="image-preview-container">
-                            <img id="result-image" alt="Detection result">
-                        </div>
-                        <div class="card" style="padding: 16px;">
-                            <div class="card-header" style="margin-bottom: 12px;">
-                                <h3 class="card-title">Detection Results</h3>
-                                <div style="display: flex; gap: 12px; font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
-                                    <span><span id="res-count" style="color: var(--text-primary); font-weight: 500;">0</span> Objects</span>
-                                    <span>•</span>
-                                    <span><span id="res-time" style="color: var(--text-primary); font-weight: 500;">0</span> ms</span>
-                                </div>
-                            </div>
-                            <div style="overflow-y: auto; max-height: 400px; border: 1px solid var(--border); border-radius: 6px;">
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Object</th>
-                                            <th>Confidence</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="res-table-body">
-                                        <!-- populated dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div style="margin-top: 16px; display: flex; gap: 10px;">
-                                <button class="btn-secondary" style="flex: 1;" onclick="resetWorkspace()">New Image</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Live Camera Mode -->
-                <div id="ws-mode-live" class="live-container">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <h2 style="font-size: 16px; margin-bottom: 4px;">Real-time Analysis</h2>
-                            <p style="font-size: 13px;">Local frame rendering decoupled from inference latency.</p>
-                        </div>
-                        <button id="btn-camera" class="btn-primary" onclick="toggleCamera()">Start Camera</button>
-                    </div>
-
-                    <div class="live-viewport">
-                        <video id="webcam-video" autoplay playsinline muted></video>
-                        <canvas id="live-canvas"></canvas>
-                        
-                        <div id="cam-placeholder" class="empty-state">
-                            <svg class="empty-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                            <span class="empty-title">Camera Idle</span>
-                            <span style="font-size: 13px;">Start camera to begin real-time detection.</span>
-                        </div>
-
-                        <div id="cam-hud" class="live-hud" style="display: none;">
-                            <div class="hud-left">
-                                <div class="hud-badge live-indicator">
-                                    <div class="dot-pulse"></div> LIVE
-                                </div>
-                                <div class="hud-badge" id="hud-fps">0 FPS</div>
-                            </div>
-                            <div class="hud-right">
-                                <div class="hud-badge" id="hud-latency">-- ms</div>
-                                <div class="hud-badge"><span id="hud-obj" style="color: var(--accent);">0</span> objects</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- History View -->
-            <div id="view-history" class="view">
                 <div>
-                    <h1>Detection History</h1>
-                    <p>Review your recent image analysis results.</p>
+                  <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Inference</div>
+                  <div style="font-size:22px;font-weight:700;" id="res-time">—<span style="font-size:12px;color:var(--text2);"> ms</span></div>
                 </div>
-
-                <div class="card" style="padding: 0; overflow: hidden;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Date & Time</th>
-                                <th>Model</th>
-                                <th>Objects Found</th>
-                                <th>Avg Confidence</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-table-body">
-                            <!-- populated dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Settings View -->
-            <div id="view-settings" class="view">
                 <div>
-                    <h1>System Settings</h1>
-                    <p>Manage application preferences and model configuration.</p>
+                  <div style="font-size:11px;color:var(--text2);margin-bottom:2px;">Avg Conf</div>
+                  <div style="font-size:22px;font-weight:700;" id="res-avgconf">—<span style="font-size:12px;color:var(--text2);">%</span></div>
                 </div>
-
-                <div class="card">
-                    <h3 class="card-title">Model Configuration</h3>
-                    <p class="card-desc" style="margin-bottom: 24px;">Current backend parameters running on the server.</p>
-                    
-                    <div style="display: flex; flex-direction: column; gap: 16px; max-width: 400px;">
-                        <div>
-                            <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Active Model Weights</label>
-                            <input type="text" id="setting-model" readonly value="Loading..." style="width: 100%; background: var(--bg-surface-secondary); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; outline: none; font-family: monospace;">
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Compute Device</label>
-                            <input type="text" id="setting-device" readonly value="Loading..." style="width: 100%; background: var(--bg-surface-secondary); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; outline: none; font-family: monospace;">
-                        </div>
-                        <div>
-                            <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Confidence Threshold</label>
-                            <input type="text" id="setting-conf" readonly value="Loading..." style="width: 100%; background: var(--bg-surface-secondary); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; outline: none; font-family: monospace;">
-                        </div>
-                    </div>
-                </div>
+              </div>
+              <div style="max-height:320px;overflow-y:auto;">
+                <table class="tbl">
+                  <thead>
+                    <tr><th>Object</th><th>Confidence</th></tr>
+                  </thead>
+                  <tbody id="res-tbody"></tbody>
+                </table>
+              </div>
             </div>
-
+          </div>
         </div>
-    </main>
+      </div>
 
-    <div class="toast-container" id="toast-container"></div>
+      <!-- Live mode -->
+      <div id="ws-live" class="live-wrap">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="section-title">Real-time Detection</div>
+            <div style="font-size:12.5px;color:var(--text2);margin-top:3px;">Frame rendering decoupled from inference — 60 FPS local display.</div>
+          </div>
+          <button id="btn-cam" class="btn btn-primary" onclick="toggleCamera()">Start Camera</button>
+        </div>
+        <div class="live-vp">
+          <video id="webcam-video" autoplay playsinline muted></video>
+          <canvas id="live-canvas"></canvas>
+          <div id="cam-placeholder" class="empty">
+            <div class="empty-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <h3>Camera Idle</h3>
+            <p>Press Start Camera to begin real-time detection.</p>
+          </div>
+          <div id="cam-hud" class="live-hud" style="display:none;">
+            <div class="hud-row">
+              <div class="hud-pill live"><div class="dot"></div>LIVE</div>
+              <div class="hud-pill" id="hud-fps">-- FPS</div>
+            </div>
+            <div class="hud-row">
+              <div class="hud-pill" id="hud-lat">-- ms</div>
+              <div class="hud-pill"><span id="hud-obj" style="color:var(--accent);">0</span> obj</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <script>
-        // ── View Routing ──
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => {
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                item.classList.add('active');
-                
-                const targetId = 'view-' + item.dataset.view;
-                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-                document.getElementById(targetId).classList.add('active');
-                
-                document.getElementById('header-title').textContent = item.textContent.trim();
-                
-                if (item.dataset.view === 'dashboard') updateDashboard();
-                if (item.dataset.view === 'history') updateHistory();
-            });
-        });
+    <!-- ═══ History ═══ -->
+    <div id="view-history" class="view">
+      <div>
+        <div class="page-title">Detection History</div>
+        <div class="page-sub">All detection runs from this session, stored locally.</div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="card-hd">
+          <span class="section-title">Recent Runs</span>
+          <button class="btn btn-ghost btn-sm" onclick="clearHistory()">Clear history</button>
+        </div>
+        <div id="history-list"></div>
+      </div>
+    </div>
 
-        // ── Toast Notifications ──
-        function showToast(message) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> ${message}`;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.remove(), 200);
-            }, 3000);
-        }
+    <!-- ═══ Analytics ═══ -->
+    <div id="view-analytics" class="view">
+      <div>
+        <div class="page-title">Analytics</div>
+        <div class="page-sub">Aggregated statistics from your detection sessions.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="card" style="padding:0;">
+          <div class="card-hd"><span class="section-title">Class Distribution</span></div>
+          <div class="card-bd" id="chart-classes">
+            <div class="empty"><div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><p>Run detections to see class distribution.</p></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;">
+          <div class="card-hd"><span class="section-title">Session Summary</span></div>
+          <div class="card-bd" id="analytics-summary" style="display:flex;flex-direction:column;gap:12px;">
+            <div class="empty"><div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><p>No analytics data yet.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        function showError(msg) {
-            const err = document.getElementById('error-alert');
-            err.textContent = msg;
-            err.style.display = 'block';
-            setTimeout(() => err.style.display = 'none', 5000);
-        }
+    <!-- ═══ Models ═══ -->
+    <div id="view-models" class="view">
+      <div>
+        <div class="page-title">Models</div>
+        <div class="page-sub">Currently configured detection model.</div>
+      </div>
+      <div class="card" style="max-width:480px;">
+        <div class="model-card">
+          <div class="model-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </div>
+          <div style="flex:1">
+            <div class="model-name" id="m-name">YOLOv8 Nano</div>
+            <div class="model-sub">Real-time object detection — 80 COCO classes</div>
+            <div class="model-props" id="m-props">
+              <div class="model-prop">
+                <div class="model-prop-k">Device</div>
+                <div class="model-prop-v" id="m-device">—</div>
+              </div>
+              <div class="model-prop">
+                <div class="model-prop-k">Threshold</div>
+                <div class="model-prop-v" id="m-conf">—</div>
+              </div>
+              <div class="model-prop">
+                <div class="model-prop-k">Classes</div>
+                <div class="model-prop-v">80</div>
+              </div>
+              <div class="model-prop">
+                <div class="model-prop-k">Status</div>
+                <div class="model-prop-v"><span class="badge badge-ok">Active</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        // ── Local Storage DB ──
-        const DB = {
-            getStats: () => JSON.parse(localStorage.getItem('visionai_stats') || '{"runs":0,"objects":0,"sumConf":0}'),
-            saveRun: (count, avgConf) => {
-                const stats = DB.getStats();
-                stats.runs += 1;
-                stats.objects += count;
-                stats.sumConf += avgConf;
-                localStorage.setItem('visionai_stats', JSON.stringify(stats));
+    <!-- ═══ Settings ═══ -->
+    <div id="view-settings" class="view">
+      <div>
+        <div class="page-title">Settings</div>
+        <div class="page-sub">Application configuration and backend parameters.</div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;max-width:560px;">
+        <div class="card-hd"><span class="section-title">Model Configuration</span></div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Model Weights</div>
+            <div class="setting-desc">Active YOLO checkpoint loaded at startup.</div>
+          </div>
+          <div class="setting-val" id="cfg-model">—</div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Compute Device</div>
+            <div class="setting-desc">Hardware used for inference.</div>
+          </div>
+          <div class="setting-val" id="cfg-device">—</div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Confidence Threshold</div>
+            <div class="setting-desc">Minimum score for a detection to appear.</div>
+          </div>
+          <div class="setting-val" id="cfg-conf">—</div>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Max Upload Size</div>
+            <div class="setting-desc">Maximum accepted image file size.</div>
+          </div>
+          <div class="setting-val" id="cfg-maxmb">—</div>
+        </div>
+      </div>
+    </div>
 
-                const history = JSON.parse(localStorage.getItem('visionai_history') || '[]');
-                history.unshift({
-                    date: new Date().toLocaleString(),
-                    count: count,
-                    avgConf: avgConf
-                });
-                if(history.length > 50) history.pop();
-                localStorage.setItem('visionai_history', JSON.stringify(history));
-            },
-            getHistory: () => JSON.parse(localStorage.getItem('visionai_history') || '[]')
-        };
+  </div><!-- end .content -->
+</main>
 
-        function updateDashboard() {
-            const stats = DB.getStats();
-            document.getElementById('stat-total').textContent = stats.runs;
-            document.getElementById('stat-objects').textContent = stats.objects;
-            document.getElementById('stat-conf').textContent = stats.runs > 0 ? Math.round((stats.sumConf / stats.runs)*100) + '%' : '0%';
-            
-            const hist = DB.getHistory().slice(0, 5);
-            const list = document.getElementById('dash-recent-list');
-            if (hist.length > 0) {
-                list.innerHTML = hist.map(h => `
-                    <div style="padding: 12px 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 13px;">
-                        <span style="color: var(--text-secondary);">${h.date}</span>
-                        <span><strong style="color: var(--text-primary);">${h.count}</strong> objects found</span>
-                    </div>
-                `).join('');
-            }
-        }
+<div class="toast-stack" id="toasts"></div>
 
-        function updateHistory() {
-            const hist = DB.getHistory();
-            const tbody = document.getElementById('history-table-body');
-            if (hist.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">No history available.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = hist.map(h => `
-                <tr>
-                    <td>${h.date}</td>
-                    <td>YOLOv8 Nano</td>
-                    <td>${h.count}</td>
-                    <td><span class="badge ${h.avgConf >= 0.7 ? 'badge-success' : 'badge-warning'}">${Math.round(h.avgConf * 100)}%</span></td>
-                </tr>
-            `).join('');
-        }
+<script>
+// ── Navigation ──────────────────────────────────────────────────────────────
+const VIEWS = {
+  dashboard: 'Dashboard',
+  detect:    'Detect',
+  history:   'History',
+  analytics: 'Analytics',
+  models:    'Models',
+  settings:  'Settings',
+};
 
-        // ── Fetch Settings ──
-        fetch('/model-info')
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('setting-model').value = data.model;
-                document.getElementById('setting-device').value = data.device.toUpperCase();
-                document.getElementById('setting-conf').value = data.confidence_threshold;
-                document.getElementById('stat-model').textContent = data.model;
-            })
-            .catch(() => {});
+function navigate(viewId) {
+  document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+    el.classList.toggle('active', el.dataset.view === viewId);
+  });
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + viewId).classList.add('active');
+  document.getElementById('topbar-title').textContent = VIEWS[viewId] || viewId;
+  document.getElementById('sidebar').classList.remove('open');
 
-        // ── Workspace: Image Upload ──
-        function switchWsTab(tab) {
-            document.querySelectorAll('.ws-tab').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.ws-tab[onclick*="${tab}"]`).classList.add('active');
-            
-            if (tab === 'image') {
-                document.getElementById('ws-mode-image').style.display = 'block';
-                document.getElementById('ws-mode-live').style.display = 'none';
-                if(isStreaming) toggleCamera();
-            } else {
-                document.getElementById('ws-mode-image').style.display = 'none';
-                document.getElementById('ws-mode-live').style.display = 'flex';
-            }
-        }
+  if (viewId === 'dashboard')  renderDashboard();
+  if (viewId === 'history')    renderHistory();
+  if (viewId === 'analytics')  renderAnalytics();
+}
 
-        const dropzone = document.getElementById('upload-container');
-        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
-        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
-        });
+document.querySelectorAll('.nav-item[data-view]').forEach(el => {
+  el.addEventListener('click', () => navigate(el.dataset.view));
+});
 
-        function handleFileSelect(e) {
-            if (e.target.files.length) processFile(e.target.files[0]);
-        }
+// close sidebar on outside click (mobile)
+document.getElementById('content').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.remove('open');
+});
 
-        async function processFile(file) {
-            document.getElementById('upload-container').style.display = 'none';
-            document.getElementById('processing-state').style.display = 'flex';
-            document.getElementById('results-container').style.display = 'none';
-            document.getElementById('error-alert').style.display = 'none';
+// ── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const colors = { ok: 'var(--ok)', warn: 'var(--warn)', err: 'var(--err)' };
+  const icons  = {
+    ok:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    warn:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    err: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+  };
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span style="color:${colors[type] || colors.ok};flex-shrink:0">${icons[type]||icons.ok}</span><span>${msg}</span>`;
+  document.getElementById('toasts').prepend(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(6px)'; setTimeout(() => t.remove(), 200); }, 3500);
+}
 
-            const formData = new FormData();
-            formData.append('file', file);
+// ── LocalStorage DB ──────────────────────────────────────────────────────────
+const DB = {
+  key_stats:   'vai_stats',
+  key_hist:    'vai_history',
+  key_classes: 'vai_classes',
 
-            try {
-                const res = await fetch('/predict', { method: 'POST', body: formData });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                
-                document.getElementById('processing-state').style.display = 'none';
-                document.getElementById('results-container').style.display = 'grid';
-                document.getElementById('result-image').src = data.annotated_image;
-                
-                document.getElementById('res-count').textContent = data.detections.length;
-                document.getElementById('res-time').textContent = data.inference_time_ms || '--';
-                
-                const tbody = document.getElementById('res-table-body');
-                if (data.detections.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-secondary);">No objects detected.</td></tr>';
-                } else {
-                    let sumConf = 0;
-                    tbody.innerHTML = data.detections.map(d => {
-                        sumConf += d.confidence;
-                        return `<tr>
-                            <td><span style="text-transform: capitalize; font-weight: 500;">${d.label}</span></td>
-                            <td><span class="badge ${d.confidence >= 0.7 ? 'badge-success' : 'badge-warning'}">${Math.round(d.confidence*100)}%</span></td>
-                        </tr>`;
-                    }).join('');
-                    
-                    const avgConf = sumConf / data.detections.length;
-                    DB.saveRun(data.detections.length, avgConf);
-                }
-                showToast("Detection completed successfully");
-                
-            } catch(e) {
-                document.getElementById('processing-state').style.display = 'none';
-                resetWorkspace();
-                showError("Detection failed. Please ensure the file is a valid image.");
-            }
-        }
+  getStats() {
+    return JSON.parse(localStorage.getItem(this.key_stats) || '{"runs":0,"objects":0,"sumConf":0,"sumTime":0}');
+  },
+  saveRun(count, avgConf, inferenceMs, detections) {
+    const s = this.getStats();
+    s.runs++;
+    s.objects += count;
+    s.sumConf += avgConf;
+    s.sumTime += inferenceMs || 0;
+    localStorage.setItem(this.key_stats, JSON.stringify(s));
 
-        function resetWorkspace() {
-            document.getElementById('upload-container').style.display = 'flex';
-            document.getElementById('processing-state').style.display = 'none';
-            document.getElementById('results-container').style.display = 'none';
-            document.getElementById('file-input').value = '';
-        }
+    // class tracker
+    const cls = JSON.parse(localStorage.getItem(this.key_classes) || '{}');
+    (detections || []).forEach(d => { cls[d.label] = (cls[d.label] || 0) + 1; });
+    localStorage.setItem(this.key_classes, JSON.stringify(cls));
 
-        // ── Workspace: Live Camera ──
-        let cameraStream = null;
-        let isStreaming = false;
-        let ws = null;
-        let frameCount = 0;
-        let fpsTimer = performance.now();
-        let latestDetections = [];
-        let renderLoop = null;
+    const hist = JSON.parse(localStorage.getItem(this.key_hist) || '[]');
+    hist.unshift({ ts: Date.now(), count, avgConf, inferenceMs });
+    if (hist.length > 100) hist.pop();
+    localStorage.setItem(this.key_hist, JSON.stringify(hist));
+  },
+  getHistory() { return JSON.parse(localStorage.getItem(this.key_hist) || '[]'); },
+  getClasses()  { return JSON.parse(localStorage.getItem(this.key_classes) || '{}'); },
+  clearAll() {
+    [this.key_stats, this.key_hist, this.key_classes].forEach(k => localStorage.removeItem(k));
+  }
+};
 
-        const videoElem = document.getElementById('webcam-video');
-        const liveCanvas = document.getElementById('live-canvas');
-        const canvasCtx = liveCanvas.getContext('2d');
-        const offscreenCanvas = document.createElement('canvas');
-        const offscreenCtx = offscreenCanvas.getContext('2d');
+// ── Relative time ─────────────────────────────────────────────────────────────
+function relTime(ts) {
+  const d = (Date.now() - ts) / 1000;
+  if (d < 60) return 'just now';
+  if (d < 3600) return `${Math.floor(d/60)}m ago`;
+  if (d < 86400) return `${Math.floor(d/3600)}h ago`;
+  return new Date(ts).toLocaleDateString();
+}
 
-        async function toggleCamera() {
-            if (isStreaming) { stopCamera(); return; }
-            try {
-                cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
-                videoElem.srcObject = cameraStream;
-                await videoElem.play();
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const s = DB.getStats();
+  document.getElementById('s-runs').textContent = s.runs;
+  document.getElementById('s-objs').textContent = s.objects;
+  document.getElementById('s-conf').innerHTML = s.runs > 0
+    ? Math.round((s.sumConf / s.runs) * 100) + '<small>%</small>' : '—<small>%</small>';
 
-                liveCanvas.width = videoElem.videoWidth || 640;
-                liveCanvas.height = videoElem.videoHeight || 480;
-                offscreenCanvas.width = 640;
-                offscreenCanvas.height = 480;
+  const hist = DB.getHistory().slice(0, 5);
+  const el = document.getElementById('dash-recent');
+  if (hist.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div><h3>No detections yet</h3><p>Upload an image in the Detect workspace to get started.</p><button class="btn btn-primary" style="margin-top:8px;" onclick="navigate('detect')">Start Detecting</button></div>`;
+    return;
+  }
+  el.innerHTML = hist.map(h => `
+    <div class="hist-item">
+      <div class="hist-thumb"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+      <div class="hist-meta">
+        <div class="hist-name">Detection run</div>
+        <div class="hist-detail">${h.count} objects · ${Math.round(h.avgConf*100)}% avg confidence · ${h.inferenceMs ? h.inferenceMs+'ms' : '--'}</div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);white-space:nowrap;">${relTime(h.ts)}</div>
+    </div>
+  `).join('');
+}
 
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                ws = new WebSocket(`${protocol}//${window.location.host}/ws/live`);
-                ws.onopen = () => { streamNextFrame(); renderLoop = requestAnimationFrame(renderLiveFeed); };
-                ws.onmessage = (e) => {
-                    if (!isStreaming) return;
-                    const data = JSON.parse(e.data);
-                    if (data.inference_time_ms) document.getElementById('hud-latency').textContent = `${data.inference_time_ms} ms`;
-                    frameCount++;
-                    const now = performance.now();
-                    if (now - fpsTimer >= 1000) { document.getElementById('hud-fps').textContent = `${frameCount} FPS`; frameCount = 0; fpsTimer = now; }
-                    if (data.detections) {
-                        latestDetections = data.detections;
-                        document.getElementById('hud-obj').textContent = data.detections.length;
-                    }
-                    streamNextFrame();
-                };
+// ── History ───────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const hist = DB.getHistory();
+  const el = document.getElementById('history-list');
+  if (hist.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>No history yet</h3><p>Completed detections will appear here.</p></div>`;
+    return;
+  }
+  el.innerHTML = hist.map((h, i) => `
+    <div class="hist-item">
+      <div class="hist-thumb"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+      <div class="hist-meta">
+        <div class="hist-name">Run #${hist.length - i}</div>
+        <div class="hist-detail">${h.count} objects found · ${h.inferenceMs ? h.inferenceMs+' ms' : 'n/a'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="badge ${h.avgConf >= 0.7 ? 'badge-ok' : 'badge-warn'}">${Math.round(h.avgConf*100)}%</span>
+        <span style="font-size:12px;color:var(--text2);white-space:nowrap;">${relTime(h.ts)}</span>
+      </div>
+    </div>
+  `).join('');
+}
 
-                isStreaming = true;
-                document.getElementById('cam-placeholder').style.display = 'none';
-                document.getElementById('cam-hud').style.display = 'flex';
-                const btn = document.getElementById('btn-camera');
-                btn.textContent = 'Stop Camera';
-                btn.style.backgroundColor = 'var(--bg-surface-secondary)';
-                btn.style.border = '1px solid var(--border)';
-                btn.style.color = 'var(--danger)';
-            } catch (err) {
-                showError("Camera access denied.");
-            }
-        }
+function clearHistory() {
+  DB.clearAll();
+  renderHistory();
+  renderDashboard();
+  toast('History cleared');
+}
 
-        function stopCamera() {
-            isStreaming = false;
-            if (renderLoop) cancelAnimationFrame(renderLoop);
-            if (ws) ws.close();
-            if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
-            videoElem.srcObject = null;
-            canvasCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
-            document.getElementById('cam-placeholder').style.display = 'flex';
-            document.getElementById('cam-hud').style.display = 'none';
-            const btn = document.getElementById('btn-camera');
-            btn.textContent = 'Start Camera';
-            btn.style = '';
-        }
+// ── Analytics ─────────────────────────────────────────────────────────────────
+function renderAnalytics() {
+  const s   = DB.getStats();
+  const cls = DB.getClasses();
 
-        function renderLiveFeed() {
-            if (!isStreaming) return;
-            canvasCtx.drawImage(videoElem, 0, 0, liveCanvas.width, liveCanvas.height);
-            latestDetections.forEach(det => {
-                const b = det.box;
-                const x = b.xmin * (liveCanvas.width / offscreenCanvas.width);
-                const y = b.ymin * (liveCanvas.height / offscreenCanvas.height);
-                const w = (b.xmax - b.xmin) * (liveCanvas.width / offscreenCanvas.width);
-                const h = (b.ymax - b.ymin) * (liveCanvas.height / offscreenCanvas.height);
+  // summary
+  const summEl = document.getElementById('analytics-summary');
+  if (s.runs === 0) {
+    summEl.innerHTML = `<div class="empty"><div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><p>No analytics data yet.</p></div>`;
+  } else {
+    const avgInf = s.runs > 0 ? Math.round(s.sumTime / s.runs) : 0;
+    const classArr = Object.entries(cls).sort((a,b) => b[1]-a[1]);
+    const topClass = classArr.length ? classArr[0][0] : '—';
+    summEl.innerHTML = [
+      ['Total Detections', s.runs],
+      ['Total Objects',    s.objects],
+      ['Avg Confidence',   Math.round((s.sumConf/s.runs)*100) + '%'],
+      ['Avg Inference',    avgInf + ' ms'],
+      ['Most Detected',    topClass],
+    ].map(([k,v]) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;color:var(--text2);">${k}</span>
+      <span style="font-size:13.5px;font-weight:600;">${v}</span>
+    </div>`).join('') ;
+  }
 
-                canvasCtx.strokeStyle = 'var(--accent)';
-                canvasCtx.lineWidth = 2;
-                canvasCtx.strokeRect(x, y, w, h);
-                
-                const txt = `${det.label.toUpperCase()} ${Math.round(det.confidence*100)}%`;
-                canvasCtx.font = '11px Inter, sans-serif';
-                canvasCtx.fontWeight = '600';
-                const tw = canvasCtx.measureText(txt).width;
-                canvasCtx.fillStyle = 'var(--accent)';
-                canvasCtx.fillRect(x, y - 20, tw + 8, 20);
-                canvasCtx.fillStyle = '#fff';
-                canvasCtx.fillText(txt, x + 4, y - 6);
-            });
-            renderLoop = requestAnimationFrame(renderLiveFeed);
-        }
+  // classes chart
+  const chartEl = document.getElementById('chart-classes');
+  const clsArr = Object.entries(cls).sort((a,b) => b[1]-a[1]).slice(0, 10);
+  if (clsArr.length === 0) {
+    chartEl.innerHTML = `<div class="empty"><div class="empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><p>Run detections to see class distribution.</p></div>`;
+    return;
+  }
+  const max = clsArr[0][1];
+  chartEl.innerHTML = `<div class="bar-chart">${clsArr.map(([name, count]) => `
+    <div class="bar-row">
+      <span class="bar-label">${name}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/max)*100)}%"></div></div>
+      <span class="bar-num">${count}</span>
+    </div>
+  `).join('')}</div>`;
+}
 
-        function streamNextFrame() {
-            if (!isStreaming || !ws || ws.readyState !== WebSocket.OPEN) return;
-            offscreenCtx.drawImage(videoElem, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
-            offscreenCanvas.toBlob((blob) => { if (blob && ws.readyState === WebSocket.OPEN) ws.send(blob); }, 'image/jpeg', 0.5);
-        }
+// ── Fetch model info ──────────────────────────────────────────────────────────
+fetch('/model-info').then(r => r.json()).then(d => {
+  document.getElementById('cfg-model').textContent  = d.model;
+  document.getElementById('cfg-device').textContent = (d.device || '').toUpperCase();
+  document.getElementById('cfg-conf').textContent   = d.confidence_threshold;
+  document.getElementById('cfg-maxmb').textContent  = d.max_file_size_mb + ' MB';
+  document.getElementById('s-model').textContent    = d.model;
+  document.getElementById('m-name').textContent     = d.model;
+  document.getElementById('m-device').textContent   = (d.device || '').toUpperCase();
+  document.getElementById('m-conf').textContent     = d.confidence_threshold;
+  document.getElementById('topbar-model').textContent = d.model;
+}).catch(() => {});
 
-        // Init
-        updateDashboard();
-    </script>
+// ── Workspace: Image ──────────────────────────────────────────────────────────
+function switchWsTab(tab) {
+  document.getElementById('tab-img').classList.toggle('active', tab === 'image');
+  document.getElementById('tab-live').classList.toggle('active', tab === 'live');
+  document.getElementById('ws-img').style.display  = tab === 'image' ? 'block' : 'none';
+  document.getElementById('ws-live').style.display = tab === 'live'  ? 'flex'  : 'none';
+  if (tab === 'image' && isStreaming) stopCamera();
+}
+
+async function processFile(file) {
+  // show processing
+  document.getElementById('upload-zone').style.display  = 'none';
+  document.getElementById('proc-wrap').style.display    = 'flex';
+  document.getElementById('results-grid').style.display = 'none';
+  document.getElementById('err-alert').style.display    = 'none';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const res  = await fetch('/predict', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+
+    document.getElementById('proc-wrap').style.display    = 'none';
+    document.getElementById('results-grid').style.display = 'grid';
+
+    document.getElementById('result-img').src = data.annotated_image;
+
+    const dets = data.detections || [];
+    document.getElementById('res-count').textContent = dets.length;
+    document.getElementById('res-time').innerHTML =
+      (data.inference_time_ms || '--') + '<span style="font-size:12px;color:var(--text2);"> ms</span>';
+
+    let sumC = 0;
+    const tbody = document.getElementById('res-tbody');
+    if (dets.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:24px;color:var(--text2);">No objects detected.</td></tr>';
+      document.getElementById('res-avgconf').innerHTML = '—<span style="font-size:12px;color:var(--text2);">%</span>';
+    } else {
+      tbody.innerHTML = dets.map(d => {
+        sumC += d.confidence;
+        const pct = Math.round(d.confidence * 100);
+        const hi  = d.confidence >= 0.7;
+        return `<tr>
+          <td><span class="obj-name">${d.label}</span></td>
+          <td>
+            <div class="conf-cell">
+              <div class="conf-bar-wrap"><div class="conf-bar ${hi ? '' : 'warn'}" style="width:${pct}%"></div></div>
+              <span class="conf-val">${pct}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+      const avg = sumC / dets.length;
+      document.getElementById('res-avgconf').innerHTML =
+        Math.round(avg * 100) + '<span style="font-size:12px;color:var(--text2);">%</span>';
+      DB.saveRun(dets.length, avg, data.inference_time_ms, dets);
+    }
+
+    toast(`Detection complete — ${dets.length} object${dets.length !== 1 ? 's' : ''} found`);
+
+  } catch(e) {
+    document.getElementById('proc-wrap').style.display = 'none';
+    document.getElementById('upload-zone').style.display = 'flex';
+    const errEl = document.getElementById('err-alert');
+    errEl.textContent = e.message || 'Something went wrong. Please try another image.';
+    errEl.style.display = 'block';
+    setTimeout(() => errEl.style.display = 'none', 6000);
+    toast('Detection failed', 'err');
+  }
+}
+
+function resetWorkspace() {
+  document.getElementById('upload-zone').style.display  = 'flex';
+  document.getElementById('proc-wrap').style.display    = 'none';
+  document.getElementById('results-grid').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+
+function downloadResult() {
+  const img = document.getElementById('result-img');
+  if (!img.src) return;
+  const a = document.createElement('a');
+  a.href = img.src; a.download = 'visionai_result.jpg'; a.click();
+  toast('Result downloaded');
+}
+
+// ── Workspace: Live Camera ────────────────────────────────────────────────────
+let cameraStream = null, isStreaming = false, ws = null;
+let frameCount = 0, fpsTimer = performance.now();
+let latestDets = [];
+let renderLoop = null;
+
+const videoElem   = document.getElementById('webcam-video');
+const liveCanvas  = document.getElementById('live-canvas');
+const ctx         = liveCanvas.getContext('2d');
+const offscreen   = document.createElement('canvas');
+const offCtx      = offscreen.getContext('2d');
+
+async function toggleCamera() {
+  if (isStreaming) { stopCamera(); return; }
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 }, audio:false });
+    videoElem.srcObject = cameraStream;
+    await videoElem.play();
+
+    liveCanvas.width  = videoElem.videoWidth  || 640;
+    liveCanvas.height = videoElem.videoHeight || 480;
+    offscreen.width   = 640; offscreen.height = 480;
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/ws/live`);
+    ws.onopen = () => { streamNextFrame(); renderLoop = requestAnimationFrame(renderFeed); };
+    ws.onmessage = e => {
+      if (!isStreaming) return;
+      const data = JSON.parse(e.data);
+      if (data.inference_time_ms) document.getElementById('hud-lat').textContent = data.inference_time_ms + ' ms';
+      frameCount++;
+      const now = performance.now();
+      if (now - fpsTimer >= 1000) {
+        document.getElementById('hud-fps').textContent = frameCount + ' FPS';
+        frameCount = 0; fpsTimer = now;
+      }
+      if (data.detections) { latestDets = data.detections; document.getElementById('hud-obj').textContent = data.detections.length; }
+      streamNextFrame();
+    };
+    ws.onerror = () => { stopCamera(); toast('WebSocket error', 'err'); };
+
+    isStreaming = true;
+    document.getElementById('cam-placeholder').style.display = 'none';
+    document.getElementById('cam-hud').style.display = 'flex';
+    const btn = document.getElementById('btn-cam');
+    btn.textContent = 'Stop Camera';
+    btn.classList.replace('btn-primary', 'btn-danger');
+  } catch(err) {
+    toast('Camera access denied or unavailable', 'err');
+  }
+}
+
+function stopCamera() {
+  isStreaming = false;
+  if (renderLoop) cancelAnimationFrame(renderLoop);
+  if (ws)           ws.close();
+  if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+  videoElem.srcObject = null;
+  ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+  document.getElementById('cam-placeholder').style.display = 'flex';
+  document.getElementById('cam-hud').style.display = 'none';
+  const btn = document.getElementById('btn-cam');
+  btn.textContent = 'Start Camera';
+  btn.classList.replace('btn-danger', 'btn-primary');
+}
+
+function renderFeed() {
+  if (!isStreaming) return;
+  ctx.drawImage(videoElem, 0, 0, liveCanvas.width, liveCanvas.height);
+
+  latestDets.forEach(det => {
+    const b  = det.box;
+    const sx = liveCanvas.width  / offscreen.width;
+    const sy = liveCanvas.height / offscreen.height;
+    const x  = b.xmin * sx, y = b.ymin * sy;
+    const w  = (b.xmax - b.xmin) * sx;
+    const h  = (b.ymax - b.ymin) * sy;
+
+    // box
+    ctx.strokeStyle = '#7C3AED';
+    ctx.lineWidth   = 1.5;
+    ctx.strokeRect(x, y, w, h);
+
+    // label
+    const label = `${det.label.toUpperCase()}  ${Math.round(det.confidence*100)}%`;
+    ctx.font = '600 11px Inter, sans-serif';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(124,58,237,.9)';
+    ctx.fillRect(x, y - 22, tw + 10, 22);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, x + 5, y - 7);
+  });
+
+  renderLoop = requestAnimationFrame(renderFeed);
+}
+
+function streamNextFrame() {
+  if (!isStreaming || !ws || ws.readyState !== WebSocket.OPEN) return;
+  offCtx.drawImage(videoElem, 0, 0, offscreen.width, offscreen.height);
+  offscreen.toBlob(blob => { if (blob && ws.readyState === WebSocket.OPEN) ws.send(blob); }, 'image/jpeg', 0.5);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderDashboard();
+
+// default ws-img visible, ws-live hidden
+document.getElementById('ws-img').style.display  = 'block';
+document.getElementById('ws-live').style.display = 'none';
+</script>
 </body>
-</html>'''
+</html>
+"""
 
-with open('app/templates/index.html', 'w', encoding='utf-8') as f:
-    f.write(html_content)
-
-print("UI successfully built.")
+out = pathlib.Path(__file__).parent / "app" / "templates" / "index.html"
+out.parent.mkdir(parents=True, exist_ok=True)
+out.write_text(HTML, encoding="utf-8")
+print(f"UI written -> {out}  ({out.stat().st_size:,} bytes)")
