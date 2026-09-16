@@ -319,7 +319,10 @@ HTML = r"""<!DOCTYPE html>
       min-height: 400px;
     }
     #webcam-video { display: none; }
-    #live-canvas  { width: 100%; height: 100%; object-fit: contain; }
+    #live-canvas  {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%; object-fit: contain;
+    }
 
     .live-hud {
       position: absolute; top: 14px; left: 14px; right: 14px;
