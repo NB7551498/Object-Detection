@@ -1,0 +1,16 @@
+---
+description: Testing conventions and quality assurance rules
+globs: tests/*
+---
+
+# VisionAI Testing Rules
+
+- Framework: `pytest` with `httpx` (TestClient).
+- Always ensure all test cases pass before merging or committing (`pytest -v`).
+- Maintain coverage across:
+  - Health probe (`/health`)
+  - Model metadata (`/model-info`)
+  - Valid image predictions (`/predict`)
+  - Input validation (unsupported MIME types, empty files, file size limits)
+  - Preprocessing pipeline and YOLO frame detection logic
+- Add new regression tests whenever a bug fix or new endpoint is introduced.

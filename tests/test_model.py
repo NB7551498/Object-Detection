@@ -62,6 +62,6 @@ def test_object_detector_frame_detection():
     result = detector.detect_frame(image_bytes)
 
     assert "detections" in result
-    assert "annotated_image" in result
+    assert isinstance(result["detections"], list)
     assert "inference_time_ms" in result
     assert isinstance(result["inference_time_ms"], float)

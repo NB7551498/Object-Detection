@@ -1,0 +1,13 @@
+---
+description: General project conventions and coding standards
+globs: *
+---
+
+# VisionAI General Rules
+
+- Use clean, modular, human-readable code.
+- Always check existing implementation before writing new utilities.
+- Keep functions single-purpose and under 50 lines where practical.
+- Never hardcode configuration parameters; pull them from `app/config.py` or `.env`.
+- Write meaningful commit messages following Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`).
+- Read `docs/PRD.md` and `docs/ARCHITECTURE.md` before making architectural updates.

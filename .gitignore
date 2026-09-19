@@ -12,3 +12,4 @@ ENV/
 .idea/
 model/model.pth
 *.pt
+runs/
