@@ -19,9 +19,14 @@ pytest -v
 | `test_model.py` | `test_preprocessing` | Validates Pillow image normalization and tensor conversions | PASS |
 | `test_model.py` | `test_object_detector_inference` | Runs model inference, returns detections and base64 image | PASS |
 | `test_model.py` | `test_object_detector_frame_detection` | Fast inference on raw frame bytes returning latency and boxes | PASS |
+| `test_security.py` | `test_security_headers_present` | Verifies CSP, HSTS, X-Frame-Options, X-Content-Type-Options | PASS |
+| `test_security.py` | `test_magic_byte_validation` | Blocks fake/spoofed image binary payloads | PASS |
+| `test_security.py` | `test_reject_spoofed_mime_type_upload` | Uploading script as JPEG returns HTTP 400 | PASS |
+| `test_security.py` | `test_filename_sanitization` | Neutralizes path traversal attempts in filenames | PASS |
 | `test_validation.py` | `test_predict_invalid_content_type` | Uploading a text or PDF file returns HTTP 400 error | PASS |
 | `test_validation.py` | `test_predict_empty_file` | Uploading a 0-byte file returns HTTP 400 error | PASS |
 | `test_validation.py` | `test_predict_oversized_file` | Uploading file > 15 MB returns HTTP 413 error | PASS |
+
 
 ---
 

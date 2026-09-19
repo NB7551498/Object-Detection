@@ -27,3 +27,24 @@ API_DESCRIPTION = (
     "A production-ready modular REST and WebSocket API with real-time live "
     "webcam streaming powered by Ultralytics YOLOv8."
 )
+
+# ── Security Configuration ───────────────────────────────────────────
+# In-memory sliding window rate limiting (requests per minute per client IP)
+RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "120"))
+
+# Allowed CORS origins
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000").split(",")
+    if origin.strip()
+]
+
+# Max concurrent WebSocket streams per IP address
+MAX_WS_CONNECTIONS_PER_IP = int(os.getenv("MAX_WS_CONNECTIONS_PER_IP", "5"))
+
+# Maximum allowable image width/height in pixels to block decompression bombs
+MAX_IMAGE_DIMENSION = int(os.getenv("MAX_IMAGE_DIMENSION", "8192"))
+
+# Optional secret API key; if set, required on /predict via X-API-Key header
+API_KEY = os.getenv("API_KEY", "").strip()
+

@@ -2,7 +2,7 @@
 
 import base64
 import os
-from fastapi import APIRouter, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from app.config import (
@@ -14,6 +14,12 @@ from app.config import (
 )
 from app.ml.inference import ObjectDetector
 from app.schemas import HealthResponse, ModelInfoResponse, DetectionResponse
+from app.security import (
+    sanitize_filename,
+    validate_image_magic_bytes,
+    verify_api_key,
+    ws_security,
+)
 
 router = APIRouter()
 
@@ -85,7 +91,10 @@ async def get_model_info():
     summary="Run object detection on image",
     tags=["inference"],
 )
-async def predict_endpoint(file: UploadFile = File(..., description="Image file to detect (JPEG, PNG, WebP, BMP)")):
+async def predict_endpoint(
+    request: Request,
+    file: UploadFile = File(..., description="Image file to detect (JPEG, PNG, WebP, BMP)"),
+):
     """Accept an uploaded image, run YOLO object detection, and return boxes and labels.
 
     The response includes a structured list of detected objects (with bounding boxes
@@ -94,7 +103,10 @@ async def predict_endpoint(file: UploadFile = File(..., description="Image file 
     **Accepted formats**: JPEG, PNG, WebP, BMP  
     **Max file size**: 15 MB
     """
-    # ── Validate content type ────────────────────────────────────
+    # ── Verify optional API Key ──────────────────────────────────
+    verify_api_key(request)
+
+    # ── Validate content type header ─────────────────────────────
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=400,
@@ -104,7 +116,7 @@ async def predict_endpoint(file: UploadFile = File(..., description="Image file 
             ),
         )
 
-    # ── Read and validate size ───────────────────────────────────
+    # ── Read and validate payload size ───────────────────────────
     image_bytes = await file.read()
     if len(image_bytes) > MAX_FILE_SIZE_BYTES:
         raise HTTPException(
@@ -115,6 +127,13 @@ async def predict_endpoint(file: UploadFile = File(..., description="Image file 
     if len(image_bytes) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
+    # ── Validate binary image magic signature (Anti-MIME spoofing) ─
+    if not validate_image_magic_bytes(image_bytes, file.content_type):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match genuine image binary signature.",
+        )
+
     # ── Inference ────────────────────────────────────────────────
     try:
         detections, annotated_image_b64 = detector.detect(image_bytes)
@@ -123,7 +142,7 @@ async def predict_endpoint(file: UploadFile = File(..., description="Image file 
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"Object detection failed: {exc}",
+            detail="Object detection failed during model execution.",
         )
 
     # ── Build response ───────────────────────────────────────────
@@ -137,10 +156,16 @@ async def predict_endpoint(file: UploadFile = File(..., description="Image file 
 async def websocket_live_detection(websocket: WebSocket):
     """WebSocket endpoint for real-time live webcam object detection.
 
-    Receives camera video frames (binary JPEG or base64 text) from the browser client,
-    runs low-latency YOLO inference, and streams back detection results, bounding boxes,
-    and annotated frames.
+    Receives camera video frames from the browser client, throttles frame rate,
+    runs low-latency YOLO inference, and streams back detection results.
     """
+    client_ip = websocket.client.host if websocket.client else "unknown"
+
+    # Enforce maximum concurrent active sockets per IP
+    if not ws_security.can_connect(client_ip, websocket):
+        await websocket.close(code=1008, reason="Max concurrent connections reached.")
+        return
+
     await websocket.accept()
     try:
         while True:
@@ -158,11 +183,17 @@ async def websocket_live_detection(websocket: WebSocket):
             if not frame_bytes:
                 continue
 
+            # Frame size validation & rate throttling
+            err = ws_security.validate_frame(websocket, frame_bytes)
+            if err:
+                await websocket.send_json({"error": err, "detections": []})
+                continue
+
             try:
                 result = detector.detect_frame(frame_bytes)
                 await websocket.send_json(result)
-            except Exception as exc:
-                await websocket.send_json({"error": str(exc), "detections": []})
+            except Exception:
+                await websocket.send_json({"error": "Detection error", "detections": []})
 
     except WebSocketDisconnect:
         pass
@@ -171,3 +202,6 @@ async def websocket_live_detection(websocket: WebSocket):
             await websocket.close()
         except Exception:
             pass
+    finally:
+        ws_security.remove_connection(client_ip, websocket)
+

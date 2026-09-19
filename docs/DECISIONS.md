@@ -80,3 +80,25 @@ Build a dedicated `train.py` CLI utility with Albumentations-style augmentation 
 ### Consequences & Rationale
 - Provides reproducible, rigorous model training without cluttering the web API runtime.
 - Works out of the box with built-in datasets (`coco128`) and custom YAML configurations.
+
+---
+
+## ADR-006: Defense-in-Depth Security & Hardening Architecture
+
+### Context
+Web-based AI inference services face distinct threat vectors including compute starvation DoS attacks, file upload tampering (MIME-spoofing, polyglot payloads, decompression bombs), Clickjacking, XSS, and WebSocket socket exhaustion.
+
+### Decision
+Implement an in-depth security subsystem in `app/security.py` featuring:
+1. HTTP Security Headers (CSP, HSTS, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Permissions-Policy).
+2. Thread-safe in-memory Sliding Window Rate Limiter.
+3. Binary magic byte signature inspection for all uploads.
+4. WebSocket connection capping and frame throttling.
+5. Decompression bomb pixel thresholds and dimension bounds.
+6. Sanitized exception handler preventing filesystem traceback leaks.
+
+### Consequences & Rationale
+- Protects the application against both web exploits and ML-specific compute starvation without requiring external enterprise WAF hardware.
+- Native Python implementation runs zero external daemon dependencies (no Redis or external rate limiter needed for local deployments).
+- Validated with automated unit and regression tests in `tests/test_security.py`.
+

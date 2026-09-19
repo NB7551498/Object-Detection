@@ -1,69 +1,113 @@
-# Security Policy & Guidelines — VisionAI
+# Security Architecture & Hardening — VisionAI
 
-This document outlines the security architecture, input validation rules, and vulnerability mitigation strategies for VisionAI.
+This document outlines the multi-layered defense-in-depth security architecture implemented across VisionAI to prevent hacking, data tampering, denial of service, and resource exhaustion attacks.
 
 ---
 
-## 1. Input Validation & File Upload Security
+## 1. Security Architecture Summary
 
-### MIME Type Enforcement
-Files uploaded to `POST /predict` are strictly validated against an explicit whitelist:
-```python
-ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 ```
-Any file carrying a non-whitelisted MIME type is immediately rejected with `HTTP 400 Bad Request`.
-
-### Payload Size Limits
-To prevent buffer overflow and memory exhaustion attacks:
-- Maximum upload size is strictly capped by `MAX_FILE_SIZE_BYTES` (default: 15 MB).
-- File length is verified before passing bytes to PIL decoding or PyTorch tensor allocation:
-```python
-if len(image_bytes) > MAX_FILE_SIZE_BYTES:
-    raise HTTPException(status_code=413, detail="File too large")
+                       INCOMING REQUEST / WEBSOCKET
+                                    │
+                                    ▼
+         ┌─────────────────────────────────────────────────────┐
+         │ 1. RateLimiterMiddleware (Sliding Window Per IP)   │ ──> HTTP 429 if flooded
+         └──────────────────────────┬──────────────────────────┘
+                                    │
+                                    ▼
+         ┌─────────────────────────────────────────────────────┐
+         │ 2. SecurityHeadersMiddleware                        │ ──> Injects CSP, HSTS,
+         │    (Anti-Clickjacking, Anti-MIME Sniff, CSP)        │     X-Frame-Options: DENY
+         └──────────────────────────┬──────────────────────────┘
+                                    │
+                                    ▼
+         ┌─────────────────────────────────────────────────────┐
+         │ 3. CORSMiddleware (Configurable Origin Whitelist)   │ ──> Blocks unauthorized
+         └──────────────────────────┬──────────────────────────┘     cross-site origins
+                                    │
+                                    ▼
+         ┌─────────────────────────────────────────────────────┐
+         │ 4. Optional API Key Verification (X-API-Key)        │ ──> HTTP 401 if invalid
+         └──────────────────────────┬──────────────────────────┘
+                                    │
+                                    ▼
+         ┌─────────────────────────────────────────────────────┐
+         │ 5. Input Validation & Magic Byte Signature Check    │ ──> HTTP 400/413 if bad
+         │    (MIME Whitelist, Magic Bytes, Max 15 MB)         │     format or spoofed
+         └──────────────────────────┬──────────────────────────┘
+                                    │
+                                    ▼
+         ┌─────────────────────────────────────────────────────┐
+         │ 6. Dimension & Decompression Bomb Safeguard         │ ──> HTTP 400 if pixels
+         │    (Max 8192px dimension, Max 50M pixels)           │     exceed limits
+         └──────────────────────────┬──────────────────────────┘
+                                    │
+                                    ▼
+         ┌─────────────────────────────────────────────────────┐
+         │ 7. SafeExceptionMiddleware                          │ ──> Catches unhandled
+         │    (Sanitized error JSON, zero trace leakage)       │     errors safely
+         └─────────────────────────────────────────────────────┘
 ```
-- Empty payloads (0 bytes) are rejected with `HTTP 400`.
-
-### Image Decompression Bomb Protection
-Pillow's internal safeguards prevent pixel decompression bombs. Images with corrupted headers or invalid byte streams trigger a handled exception and return a clean HTTP 400 response.
 
 ---
 
-## 2. WebSocket Security & Streaming Safeguards
+## 2. Implemented Defense Layers
 
-### Resource Exhaustion Prevention
-- Live streaming frames on `/ws/live` are passed as compressed JPEG blobs (`quality: 0.5`).
-- The backend does not buffer indefinite history in server memory; frames are evaluated statelessly and discarded immediately after inference.
+### Layer 1: HTTP Security Headers
+Applied automatically to every response via `SecurityHeadersMiddleware`:
+- **`X-Frame-Options: DENY`**: Eliminates Clickjacking by prohibiting iframe embedding on third-party sites.
+- **`X-Content-Type-Options: nosniff`**: Prevents browser MIME-confusion and script execution attacks.
+- **`X-XSS-Protection: 1; mode=block`**: Activates reflective XSS filtering in legacy clients.
+- **`Strict-Transport-Security (HSTS)`**: Enforces HTTPS connections (`max-age=31536000; includeSubDomains`).
+- **`Content-Security-Policy (CSP)`**: Restricts script execution to safe internal origins and trusted font providers, completely disabling unauthorized external script injection.
+- **`Permissions-Policy: camera=(self), microphone=(), geolocation=()`**: Locks down hardware camera access to VisionAI's exact origin, permanently disabling microphone and geolocation.
 
-### Safe Disconnect Handling
-The WebSocket loop wraps all network operations in try/except blocks to gracefully catch `WebSocketDisconnect` without generating orphaned threads or hanging sockets.
+### Layer 2: Sliding-Window Rate Limiting (Anti-DoS)
+Inference is compute-heavy. An attacker attempting to saturate CPU/GPU resources is throttled:
+- Governed by `RateLimiterMiddleware` in `app/security.py`.
+- Thread-safe sliding window tracking per client IP address.
+- Configured by `RATE_LIMIT_PER_MINUTE` (default: 120 req/min).
+- Requests exceeding the threshold receive `HTTP 429 Too Many Requests` with a dynamic `Retry-After` header.
+
+### Layer 3: Binary Magic Byte Validation (Anti-MIME Spoofing)
+- Attackers cannot rename a malicious executable, shell script, or HTML file to `exploit.jpg`.
+- `validate_image_magic_bytes()` checks the actual binary byte header (`\xff\xd8\xff` for JPEG, `\x89PNG` for PNG, `RIFF...WEBP` for WebP, `BM` for BMP).
+- Spoofed files are immediately rejected with `HTTP 400 Bad Request`.
+
+### Layer 4: Filename Sanitization & Path Traversal Prevention
+- `sanitize_filename()` strips directory separators (`/`, `\`), null bytes (`\x00`), and dangerous shell characters.
+- Defends against directory climbing (e.g. `../../etc/passwd` or `..\system32\cmd.exe`).
+
+### Layer 5: Decompression Bomb & Memory Exhaustion Defense
+- Pillow's decompression bomb ceiling is enforced at `Image.MAX_IMAGE_PIXELS = 50_000_000`.
+- Max dimension bounds check in `app/ml/preprocessing.py` blocks images with width or height > `MAX_IMAGE_DIMENSION` (8192px).
+- Maximum upload byte length is enforced at `MAX_FILE_SIZE_BYTES` (15 MB) before decoding image bytes.
+
+### Layer 6: WebSocket Security & Abuse Prevention
+Implemented in `WebSocketSecurityManager`:
+- **Connection Capping**: Enforces `MAX_WS_CONNECTIONS_PER_IP` (default: 5 concurrent sockets) to prevent file descriptor exhaustion.
+- **Frame Rate Throttling**: Limits stream processing to ~30 FPS per socket, discarding microsecond frame floods.
+- **Frame Size Caps**: Drops individual frames exceeding 5 MB to prevent memory bloat.
+- **Safe Lifecycle**: Disconnections are caught and cleanly reclaimed without hanging sockets.
+
+### Layer 7: Traceback Leakage & Information Disclosure Prevention
+- `SafeExceptionMiddleware` intercepts any unhandled exception.
+- Internal operating system file paths, stack traces, and library internals are never returned to the browser.
+- Standardized sanitized error responses are returned (`HTTP 500: An internal server error occurred`).
+
+### Layer 8: Optional API Key Protection
+- Configure `API_KEY=your_secret_key` in `.env` to enforce authentication.
+- REST endpoints automatically require the `X-API-Key` header when enabled.
 
 ---
 
-## 3. Secrets & Configuration Management
+## 3. Security Verification
 
-### Zero Secrets in Source
-- No API keys, passwords, or sensitive paths are stored in the codebase.
-- Configuration is loaded exclusively via environment variables (`app/config.py`).
-- `.env` and other secret stores are explicitly ignored in `.gitignore`.
-- `.env.example` provides the safe public contract template.
-
----
-
-## 4. Client-Side Security
-
-### XSS Prevention
-- All user-supplied filenames and labels rendered in the DOM are sanitized or populated using native `textContent` assignments rather than unsanitized `innerHTML`.
-- SVG icons are hardcoded static assets without embedded script elements.
-
-### Storage Isolation
-- Session history and analytics are isolated to browser `localStorage` and never transmitted to external third-party tracking services.
-
----
-
-## 5. Deployment Hardening Checklist
-
-Before public exposure:
-- [ ] Run behind a reverse proxy (e.g. Nginx, Caddy, or Cloudflare) with HTTPS/TLS termination.
-- [ ] Implement rate limiting (e.g. 60 requests/minute per IP) on `POST /predict`.
-- [ ] Configure restrictive CORS policies in FastAPI (`CORSMiddleware`) if frontend is hosted on a separate domain.
-- [ ] Set `RELOAD=false` and run non-root Docker containers.
+Automated security regression tests are maintained in [`tests/test_security.py`](../tests/test_security.py):
+```bash
+pytest tests/test_security.py -v
+```
+- `test_security_headers_present`: Verifies CSP, HSTS, X-Frame-Options, X-Content-Type-Options.
+- `test_magic_byte_validation`: Verifies binary header discrimination against spoofed payloads.
+- `test_reject_spoofed_mime_type_upload`: Verifies `POST /predict` blocks fake images.
+- `test_filename_sanitization`: Verifies path traversal neutralization.

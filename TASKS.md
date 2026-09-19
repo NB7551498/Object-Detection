@@ -71,3 +71,16 @@ This document tracks all implementation phases, tasks, and feature milestones.
 - [x] TASK-040: Create `docs/MEMORY.md` (Live State & Execution Context).
 - [x] TASK-041: Create `RULES.md` and `.cursor/rules/`.
 - [x] TASK-042: Update `README.md` to reference the complete Vibe Coding framework.
+
+---
+
+## Phase 8: Defense-in-Depth Security Layer
+- [x] TASK-043: Implement `app/security.py` with sliding window rate limiter, magic byte validator, and security manager.
+- [x] TASK-044: Enforce HTTP security headers (CSP, HSTS, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Permissions-Policy).
+- [x] TASK-045: Add binary magic byte validation on uploaded images to block MIME-spoofing and polyglot files.
+- [x] TASK-046: Implement filename sanitization to neutralize path traversal exploits.
+- [x] TASK-047: Implement pixel and dimension safeguards to block decompression bomb attacks.
+- [x] TASK-048: Add WebSocket connection bounds, frame rate throttling, and payload capping.
+- [x] TASK-049: Add sanitized exception handling to prevent filesystem path and traceback leakage.
+- [x] TASK-050: Create automated security regression test suite in `tests/test_security.py` (12/12 tests passing).
+
