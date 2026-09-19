@@ -4,10 +4,11 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115.0-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-00FFFF.svg)](https://docs.ultralytics.com/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.6.0-EE4C2C.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![Tests](https://img.shields.io/badge/Tests-8%20Passed-brightgreen.svg)](https://pytest.org/)
+[![Tests](https://img.shields.io/badge/Tests-12%20Passed-brightgreen.svg)](https://pytest.org/)
+[![Security](https://img.shields.io/badge/Security-Defense--in--Depth-blueviolet.svg)](#-security-architecture--hardening)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-A production-quality **AI computer vision application** powered by **Ultralytics YOLOv8**. Features a fully redesigned dark-first **VisionAI** interface with sidebar navigation, real-time live camera detection, detection history, analytics, model info, and a rigorous training pipeline — all running on a lightweight FastAPI backend.
+A production-quality **AI computer vision application** powered by **Ultralytics YOLOv8**. Features a fully redesigned dark-first **VisionAI** interface with sidebar navigation, real-time live camera detection, detection history, analytics, model info, a rigorous training pipeline, and an enterprise defense-in-depth security layer — all running on a lightweight FastAPI backend.
 
 ---
 
@@ -16,6 +17,7 @@ A production-quality **AI computer vision application** powered by **Ultralytics
 - [🌟 Key Highlights](#-key-highlights)
 - [🖥️ UI Overview](#️-ui-overview)
 - [🏗️ System Architecture](#️-system-architecture)
+- [🛡️ Security Architecture & Hardening](#️-security-architecture--hardening)
 - [📚 Vibe Coding & Project Documentation](#-vibe-coding--project-documentation)
 - [📁 Project Layout](#-project-layout)
 - [⚡ Quick Start](#-quick-start)
@@ -33,11 +35,13 @@ A production-quality **AI computer vision application** powered by **Ultralytics
 - **VisionAI SPA** — Professional dark-first UI with sidebar navigation (Dashboard, Detect, History, Analytics, Models, Settings). Responsive on desktop, tablet, and mobile.
 - **YOLOv8 Backend** — `yolov8n.pt` (80 COCO classes, ~6.2 MB) serving `/predict` REST and `/ws/live` WebSocket endpoints.
 - **Decoupled Live Rendering** — Frontend renders the webcam feed natively at 60+ FPS; YOLO inference results stream asynchronously over WebSocket without blocking the video.
+- **Multi-Layer Defense-in-Depth Security** — Sliding-window IP rate limiting (Anti-DoS), hardened HTTP security headers (CSP, HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`), binary magic byte inspection, decompression bomb safeguards, and socket throttling.
 - **Rigorous Training Pipeline** — `train.py` with full augmentation (mosaic, MixUp, copy-paste, HSV jitter), AdamW optimizer, cosine LR, early stopping, post-training eval, and auto export.
 - **Detection History & Analytics** — All sessions stored in `localStorage`. Class distribution bar chart, per-session mAP stats, and relative timestamps built in.
-- **Production Layout** — Strict separation: config, schemas, ML pipeline, routes, and frontend are all independent modules.
+- **Production Layout** — Strict separation: config, schemas, ML pipeline, routes, security, and frontend are all independent modules.
 - **Vibe Coding Standards** — Complete specification suite including `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `RULES.md`, `TASKS.md`, `DECISIONS.md`, `TEST_PLAN.md`, `SECURITY.md`, and `MEMORY.md`.
-- **Full Test Suite** — 8 automated pytest tests covering health, validation, preprocessing, inference, and frame detection.
+- **Full Test Suite** — 12 automated pytest tests covering health, validation, preprocessing, inference, frame detection, security headers, magic bytes, and path sanitization.
+
 
 ---
 
@@ -92,6 +96,23 @@ Structured Detections      Annotated Image
 
 ---
 
+## 🛡️ Security Architecture & Hardening
+
+VisionAI implements an enterprise **multi-layer defense-in-depth security model** ([`app/security.py`](app/security.py)) designed to withstand automated attacks, exploit scripts, and compute starvation attempts:
+
+| Security Layer | Threat Vector Prevented | Implementation Mechanism |
+|---|---|---|
+| **Sliding-Window Rate Limiter** | Denial of Service (DoS) & Inference Starvation | In-memory IP sliding window (`RateLimiterMiddleware`, 120 req/min) returning HTTP 429 with `Retry-After`. |
+| **HTTP Security Headers** | Clickjacking, XSS, MIME Sniffing | Enforces `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, HSTS, and strict Content Security Policy (CSP). |
+| **Binary Magic Byte Validator** | MIME-Spoofing & Polyglot Script Uploads | Inspects initial byte signatures (`\xff\xd8\xff` JPEG, `\x89PNG`, `RIFF...WEBP`, `BM`). Non-image payloads rejected with HTTP 400. |
+| **Path Traversal Sanitizer** | Arbitrary File Overwrites & Directory Climbing | `sanitize_filename()` strips all path separators (`/`, `\`), null bytes, and shell characters from upload filenames. |
+| **Decompression Bomb Guard** | Pixel Flood & Out-of-Memory Server Crashes | Capped `Image.MAX_IMAGE_PIXELS = 50_000_000` and maximum dimension bounds check (8192px max). |
+| **WebSocket Guard & Throttler** | Socket Exhaustion & Frame Flooding | Max 5 active sockets per IP, drops frames > 5 MB, and throttles frame ingestion to 30 FPS. |
+| **Safe Error Masking** | Information Disclosure & Traceback Leakage | `SafeExceptionMiddleware` intercepts unhandled server crashes and returns sanitized error JSON without leaking internal paths. |
+| **Optional API Key Auth** | Unauthorized External REST Consumption | Optional `API_KEY` setting enforcing `X-API-Key` header authentication on `/predict`. |
+
+---
+
 ## 📚 Vibe Coding & Project Documentation
 
 This repository follows the structured **Beginner-to-Production Vibe Coding Specification**, ensuring full traceability, modularity, and AI pair-programming context.
@@ -134,6 +155,7 @@ Object-Detection/
 │   ├── main.py              # FastAPI app + lifespan startup
 │   ├── config.py            # Env variable configuration loader
 │   ├── schemas.py           # Pydantic response models
+│   ├── security.py          # Enterprise security layers & middlewares
 │   ├── api/
 │   │   └── routes.py        # /predict  /ws/live  /health  /model-info
 │   ├── ml/
@@ -144,6 +166,7 @@ Object-Detection/
 │       └── index.html       # VisionAI SPA (Vanilla HTML5/CSS/JS)
 ├── tests/
 │   ├── test_health.py       # Health & metadata tests
+│   ├── test_security.py     # Security headers, magic bytes & sanitization
 │   ├── test_validation.py   # Format & size validation tests
 │   └── test_model.py        # Inference & frame detection tests
 ├── train.py                 # Rigorous YOLOv8 training pipeline
@@ -341,11 +364,15 @@ tests/test_health.py::test_model_info                            PASSED
 tests/test_model.py::test_preprocessing                          PASSED
 tests/test_model.py::test_object_detector_inference              PASSED
 tests/test_model.py::test_object_detector_frame_detection        PASSED
+tests/test_security.py::test_security_headers_present            PASSED
+tests/test_security.py::test_magic_byte_validation               PASSED
+tests/test_security.py::test_reject_spoofed_mime_type_upload     PASSED
+tests/test_security.py::test_filename_sanitization               PASSED
 tests/test_validation.py::test_predict_invalid_content_type      PASSED
 tests/test_validation.py::test_predict_empty_file                PASSED
 tests/test_validation.py::test_predict_oversized_file            PASSED
 
-======================= 8 passed ========================
+======================= 12 passed in 42.33s ========================
 ```
 
 ---
@@ -355,9 +382,15 @@ tests/test_validation.py::test_predict_oversized_file            PASSED
 | Variable | Default | Description |
 |---|---|---|
 | `MODEL_NAME` | `yolov8n.pt` | YOLO weights file to load |
-| `CONFIDENCE_THRESHOLD` | `0.5` | Minimum detection confidence (0–1) |
-| `MAX_FILE_SIZE_MB` | `15` | Max upload size in MB |
-| `DEVICE` | `auto` | `cpu` or `cuda` |
+| `CONFIDENCE_THRESHOLD` | `0.5` | Minimum detection confidence (0.0 to 1.0) |
+| `MAX_FILE_SIZE_MB` | `15` | Max upload size in Megabytes |
+| `DEVICE` | `auto` | Compute target (`cpu` or `cuda`) |
+| `RATE_LIMIT_PER_MINUTE` | `120` | Max API requests per minute per IP address |
+| `ALLOWED_ORIGINS` | `http://localhost:8000,http://127.0.0.1:8000` | Whitelisted CORS origins (comma-separated) |
+| `MAX_WS_CONNECTIONS_PER_IP` | `5` | Maximum concurrent live WebSocket streams per IP |
+| `MAX_IMAGE_DIMENSION` | `8192` | Maximum width/height in px (anti-decompression bomb) |
+| `API_KEY` | `""` | Optional secret key; enforces `X-API-Key` when set |
+
 
 ---
 
