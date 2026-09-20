@@ -3,7 +3,7 @@
 import base64
 import os
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from app.config import (
     CONFIDENCE_THRESHOLD,
@@ -41,9 +41,15 @@ def init_detector():
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 
 
-@router.get("/", response_class=HTMLResponse, summary="Gemini-style Chat & Live Camera UI", tags=["frontend"])
+@router.get("/", response_class=HTMLResponse, summary="VisionAI Web Client", tags=["frontend"])
+@router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/detect", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/history", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/analytics", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/models", response_class=HTMLResponse, include_in_schema=False)
+@router.get("/settings", response_class=HTMLResponse, include_in_schema=False)
 async def get_frontend():
-    """Serve the interactive web client frontend at the root route."""
+    """Serve the interactive web client frontend."""
     template_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), "templates", "index.html"
     )
@@ -53,6 +59,13 @@ async def get_frontend():
     with open(template_path, "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+async def get_favicon():
+    """Return an empty 204 No Content for favicon requests to prevent 404 logs."""
+    return Response(status_code=204)
+
 
 
 @router.get(

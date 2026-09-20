@@ -844,7 +844,8 @@ const VIEWS = {
   settings:  'Settings',
 };
 
-function navigate(viewId) {
+function navigate(viewId, updateHistory = true) {
+  if (!document.getElementById('view-' + viewId)) viewId = 'dashboard';
   document.querySelectorAll('.nav-item[data-view]').forEach(el => {
     el.classList.toggle('active', el.dataset.view === viewId);
   });
@@ -852,6 +853,13 @@ function navigate(viewId) {
   document.getElementById('view-' + viewId).classList.add('active');
   document.getElementById('topbar-title').textContent = VIEWS[viewId] || viewId;
   document.getElementById('sidebar').classList.remove('open');
+
+  if (updateHistory) {
+    const newPath = viewId === 'dashboard' ? '/' : '/' + viewId;
+    if (window.location.pathname !== newPath) {
+      history.pushState({ viewId }, '', newPath);
+    }
+  }
 
   if (viewId === 'dashboard')  renderDashboard();
   if (viewId === 'history')    renderHistory();
@@ -861,6 +869,15 @@ function navigate(viewId) {
 document.querySelectorAll('.nav-item[data-view]').forEach(el => {
   el.addEventListener('click', () => navigate(el.dataset.view));
 });
+
+window.addEventListener('popstate', () => {
+  const p = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+  navigate(p, false);
+});
+
+// Set active view from current URL path on initial load
+const initRoute = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+navigate(initRoute, false);
 
 // close sidebar on outside click (mobile)
 document.getElementById('content').addEventListener('click', () => {
