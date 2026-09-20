@@ -18,7 +18,6 @@ A production-quality **AI computer vision application** powered by **Ultralytics
 - [🖥️ UI Overview](#️-ui-overview)
 - [🏗️ System Architecture](#️-system-architecture)
 - [🛡️ Security Architecture & Hardening](#️-security-architecture--hardening)
-- [📚 Vibe Coding & Project Documentation](#-vibe-coding--project-documentation)
 - [📁 Project Layout](#-project-layout)
 - [⚡ Quick Start](#-quick-start)
 - [🎯 Training Your Own Model](#-training-your-own-model)
@@ -39,8 +38,8 @@ A production-quality **AI computer vision application** powered by **Ultralytics
 - **Rigorous Training Pipeline** — `train.py` with full augmentation (mosaic, MixUp, copy-paste, HSV jitter), AdamW optimizer, cosine LR, early stopping, post-training eval, and auto export.
 - **Detection History & Analytics** — All sessions stored in `localStorage`. Class distribution bar chart, per-session mAP stats, and relative timestamps built in.
 - **Production Layout** — Strict separation: config, schemas, ML pipeline, routes, security, and frontend are all independent modules.
-- **Vibe Coding Standards** — Complete specification suite including `PRD.md`, `ARCHITECTURE.md`, `DESIGN.md`, `RULES.md`, `TASKS.md`, `DECISIONS.md`, `TEST_PLAN.md`, `SECURITY.md`, and `MEMORY.md`.
 - **Full Test Suite** — 12 automated pytest tests covering health, validation, preprocessing, inference, frame detection, security headers, magic bytes, and path sanitization.
+
 
 
 ---
@@ -113,44 +112,10 @@ VisionAI implements an enterprise **multi-layer defense-in-depth security model*
 
 ---
 
-## 📚 Vibe Coding & Project Documentation
-
-This repository follows the structured **Beginner-to-Production Vibe Coding Specification**, ensuring full traceability, modularity, and AI pair-programming context.
-
-| Document | Purpose | Stage |
-|---|---|---|
-| [**`docs/PRD.md`**](docs/PRD.md) | What are we building and why? (Product, problem, users, goals, scope) | Planning |
-| [**`docs/ARCHITECTURE.md`**](docs/ARCHITECTURE.md) | How will the system work? (Tech stack, pipelines, contracts, rules) | Planning |
-| [**`docs/DESIGN.md`**](docs/DESIGN.md) | How should it look and feel? (Tokens, typography, UI components, states) | Planning |
-| [**`RULES.md`**](RULES.md) | How should AI agents and humans code? (Conventions, safety, workflows) | Planning |
-| [**`TASKS.md`**](TASKS.md) | What should we build next? (Phased milestones, task breakdown, checklists) | Development |
-| [**`docs/DECISIONS.md`**](docs/DECISIONS.md) | Why did we make this decision? (Architecture Decision Records / ADRs) | Development |
-| [**`docs/MEMORY.md`**](docs/MEMORY.md) | What is the active project state? (Current status, completed items, roadmap) | Development |
-| [**`docs/TEST_PLAN.md`**](docs/TEST_PLAN.md) | How do we verify it works? (Pytest test suite, manual QA checklist) | Testing |
-| [**`docs/SECURITY.md`**](docs/SECURITY.md) | How do we protect it? (File validation, payload limits, safe WebSockets) | Security |
-| [**`.env.example`**](.env.example) | What configuration is required? (Environment variables contract) | Setup |
-| [**`.cursor/rules/`**](.cursor/rules/) | Cursor IDE agent rules (`general`, `frontend`, `backend`, `testing`) | Development |
-
----
-
 ## 📁 Project Layout
 
 ```
 Object-Detection/
-├── docs/
-│   ├── PRD.md               # Product Requirements Document
-│   ├── ARCHITECTURE.md      # System Architecture & Pipelines
-│   ├── DESIGN.md            # Visual Design System & UX Standards
-│   ├── TEST_PLAN.md         # Verification Matrix & QA Checklist
-│   ├── SECURITY.md          # Security Policy & Input Safeguards
-│   ├── DECISIONS.md         # Architecture Decision Records (ADRs)
-│   └── MEMORY.md            # Live Project State & Execution Context
-├── .cursor/
-│   └── rules/               # Cursor IDE rulebook (.mdc files)
-│       ├── general.mdc
-│       ├── frontend.mdc
-│       ├── backend.mdc
-│       └── testing.mdc
 ├── app/
 │   ├── main.py              # FastAPI app + lifespan startup
 │   ├── config.py            # Env variable configuration loader
@@ -172,8 +137,6 @@ Object-Detection/
 ├── train.py                 # Rigorous YOLOv8 training pipeline
 ├── build_ui.py              # UI builder — compiles index.html
 ├── TRAINING.md              # Training execution manual
-├── RULES.md                 # AI Development & Coding Rules
-├── TASKS.md                 # Phased task tracking breakdown
 ├── .env.example             # Environment template
 ├── requirements.txt         # Pinned Python dependencies
 ├── yolov8n.pt               # Pre-trained YOLOv8 weights
